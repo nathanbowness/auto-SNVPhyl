@@ -8,8 +8,8 @@
 #   name: The prefix of the history name
 #   nasmnt: The directory of the NAS mount
 #   redmine:
-# TODO INDEX EXTERNAL WGS SPADES
 # TODO MAKE SEPARATE SCRIPT FOR REDMINE REST API AND FOR CREATING LOG FILE
+
 import os
 import sys
 import re
@@ -273,18 +273,21 @@ class AutoSNVPhyl(object):
         self.WORKFLOW_ID = None
         self.NASMNT = None
 
-
         # Add arguments
         self.redmine = args.redmine
         self.reference = args.reference
         self.noextract = args.noextract
         self.NAME = args.history_name if args.history_name is not None else "AutoSNVPhyl_%s" % time.strftime("%d-%m-%Y")
         self.manual = args.manual
+        self.script_dir = sys.path[0]
+        if not os.path.exists(os.path.join(self.script_dir, 'logs')):
+            os.makedirs(os.path.join(self.script_dir, 'logs'))
 
-        self.t = Timer()
+        import datetime
+        self.t = Timer(log_file=os.path.join(self.script_dir, 'logs',
+                                             datetime.datetime.now().strftime("%d-%m-%Y_%S:%M:%H")
+                                             + "_%s.txt" % self.NAME))
         self.t.set_colour(32)
-
-
 
         self.history_id = None
         self.load()
