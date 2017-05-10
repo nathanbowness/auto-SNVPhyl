@@ -95,7 +95,7 @@ class SequenceGetter(object):
                     del dirs[:]
 
         # External fastq
-        for root, dirs, files in walklevel(os.path.join(self.nasmnt,'External_MiSeq_Backup'), level=3):
+        for root, dirs, files in walklevel(os.path.join(self.nasmnt,'External_MiSeq_Backup'), level=4):
             for x in files:
                 if x.endswith(".fastq.gz"):
                     self.file_dict[os.path.split(x)[-1].split('_')[0]].append(os.path.join(root, x))
