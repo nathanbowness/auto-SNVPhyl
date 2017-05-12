@@ -189,6 +189,8 @@ class AutoSNVPhyl(object):
         for file in self.logsequences:
             self.t.time_print(file)
 
+        return os.path.join(self.script_dir, folder, self.NAME + '.zip')
+
     def zip_results(self, r_folder):
         f_list = [
             "snvMatrix.tsv",
@@ -244,7 +246,7 @@ class AutoSNVPhyl(object):
         from sequence_getter import SequenceGetter
 
         extractor = SequenceGetter(nasmnt=self.NASMNT, output=False)
-        if self.retrievelist is None:
+        if self.inputs is None:
             path_to_list = os.path.join(self.script_dir, "retrieve.txt")
             try:
                 f = open(path_to_list, "r")
@@ -264,7 +266,7 @@ class AutoSNVPhyl(object):
                     self.t.time_print("Invalid seqid: \"%s\" -- Length %d" % (line.rstrip("\n"), len(line.rstrip("\n"))))
 
         else:
-            ids = self.retrievelist
+            ids = self.inputs
 
         # Get paths of fastq's
         path_list = []
@@ -378,7 +380,7 @@ class AutoSNVPhyl(object):
                 if sequence["name"] == compare["name"] and sequence["name"] not in done:
                     # Pair them
                     elements = [
-                            collections.HistoryDatasetElement(name="forward",id=sequence["id"]),
+                            collections.HistoryDatasetElement(name="forward", id=sequence["id"]),
                             collections.HistoryDatasetElement(name="reverse", id=compare["id"])
                         ]
                     done.append(sequence["name"])
@@ -432,7 +434,7 @@ class AutoSNVPhyl(object):
         self.IP = config.ip
         self.NASMNT = os.path.normpath(config.nasmnt)
 
-    def __init__(self, args, retrievelist=None):
+    def __init__(self, args, inputs=None):
         self.max_attempts = 10
         self.uploaded = []  # A list of all uploaded files
         self.logsequences = []
@@ -442,10 +444,9 @@ class AutoSNVPhyl(object):
         self.API_KEY = None
         self.WORKFLOW_ID = None
         self.NASMNT = None
-        self.retrievelist = retrievelist
+        self.inputs = inputs
 
         # Add arguments
-        self.redmine = args.redmine
         self.reference = args.reference
         self.noextract = args.noextract
         self.NAME = args.history_name if args.history_name is not None else "AutoSNVPhyl_%s" % time.strftime("%d-%m-%Y")
@@ -477,8 +478,6 @@ if __name__ == "__main__":
                         help="Use if you don't want any fastq files to be extracted from the nas.")
     parser.add_argument("-n", "--history_name", type=str,
                         help="Name of the history to create")
-    parser.add_argument("-i", "--redmine", type=int,
-                        help="Set a redmine ticket id to put the lists in")
     parser.add_argument("-m", "--manual", action="store_true",
                         help="Use the files in your upload directory (can use this in addition to the files extracted)."
                              "If this flag is not used then it will clear the files in your upload directory.")
