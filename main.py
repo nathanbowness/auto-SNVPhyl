@@ -38,15 +38,12 @@ class AutoSNVPhyl(object):
                 self.t.time_print("[Warning] Using manual flag since noextract was specified without manual.")
                 self.manual = True
 
-            self.main()
+            return self.main()  # Return the path to the results zip
         except:
             import traceback
 
             self.t.time_print("[Error Dump]\n" + traceback.format_exc())
             raise
-
-        # Return the path to the results zip
-        return
 
     def main(self):
         # self.NAME = "EcoliO157:H7_2124"
@@ -390,49 +387,22 @@ class AutoSNVPhyl(object):
         self.gi.histories.create_dataset_collection(self.history_id, collection_description)
 
     def load(self):
-        reqs = ["ip",
-                "api_key",
-                "workflow_id",
-                "nasmnt"
-                ]
         from pyaccessories.SaveLoad import SaveLoad as SaveLoad
 
-        config = SaveLoad()
+        config = SaveLoad(os.path.join(self.script_dir, "config.json"), create=True)
 
-        import json.decoder
-        try:
-            # If there was no config file
-            if not config.load(os.path.join(self.script_dir, "config.json"), create=True):
-                config.ip = "http://192.168.1.3:48888/"
-                config.api_key = "<API_KEY>"
-                config.workflow_id = "f2db41e1fa331b3e"  # SNVPhyl paired end
-                config.nasmnt = "/mnt/nas/"
-                config.dump(os.path.join(self.script_dir,"config.json"))
-                print("Created config.json, please edit it and put in values.")
-                exit(1)
-        except json.decoder.JSONDecodeError:
-            self.t.time_print("Invalid config.json")
-            raise
-
-        for requirement in reqs:
-            if requirement not in config.__dict__:
-                self.t.time_print("Invalid config file config.json, missing %s" % requirement)
-                sys.exit(1)
-
-        if re.match(r"^\w{32}$", config.api_key):
-            self.API_KEY = config.api_key
-        else:
+        self.API_KEY = config.get('api_key')
+        if not re.match(r"^\w{32}$", self.API_KEY):
             self.t.time_print("Invalid Galaxy API key.")
             sys.exit(1)
 
-        if re.match(r"^\w{16}$", config.workflow_id):
-            self.WORKFLOW_ID = config.workflow_id
-        else:
+        self.WORKFLOW_ID = config.get('workflow_id', default='f2db41e1fa331b3e')  # SNVPhyl paired end
+        if not re.match(r"^\w{16}$", self.WORKFLOW_ID):
             self.t.time_print("Invalid workflow ID format.")
             sys.exit(1)
 
-        self.IP = config.ip
-        self.NASMNT = os.path.normpath(config.nasmnt)
+        self.IP = config.get('ip', default="http://192.168.1.3:48888/")
+        self.NASMNT = os.path.normpath(config.get('nasmnt', default="/mnt/nas/"))
 
     def __init__(self, args, inputs=None):
         self.max_attempts = 10

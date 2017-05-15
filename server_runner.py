@@ -9,40 +9,33 @@ import requests
 
 class Run(object):
     def main(self):
-        self.t.time_print("Would you like to set the redmine api key? (y/n)")
-        if input() == 'y':
-            self.t.time_print("Enter the new api key (will be encrypted to file)")
+        if self.first_run == 'yes':
+            choice = 'y'
+        else:
+            self.t.time_print("Would you like to set the redmine api key? (y/n)")
+            choice = input()
+
+        if choice == 'y':
+            self.t.time_print("Enter your redmine api key (will be encrypted to file)")
             self.redmine_api_key = input()
             self.loader.redmine_api_key_encrypted = self.encode(self.key, self.redmine_api_key).decode('utf-8')
-            self.loader.dump("config.json")
+            self.loader.first_run = 'no'
+            self.loader.dump(self.config_json)
         else:
             self.redmine_api_key = self.decode(self.key, self.redmine_api_key)
-            # TODO remove this line
-            self.t.time_print("Using %s as api key" % self.redmine_api_key)
 
         self.main_loop()
 
     @staticmethod
     def generate_args(inputs):
         import argparse
-        parser = argparse.ArgumentParser()
-        parser.add_argument("-r", "--reference",
-                            help="Input the seqid of the reference file. "
-                                 "Also tells the program to extract the fastqs in your retrieve.txt. "
-                                 "If this parameter is not given then it will use the files in your "
-                                 "upload folder, it will autodetect the reference file as long as it's"
-                                 "a fasta. ", type=str)
-        parser.add_argument("-e", "--noextract", action="store_true",
-                            help="Use if you don't want any fastq files to be extracted from the nas.")
-        parser.add_argument("-n", "--history_name", type=str,
-                            help="Name of the history to create")
-        parser.add_argument("-m", "--manual", action="store_true",
-                            help="Use the files in your upload directory (can use this in addition to the files extracted)."
-                                 "If this flag is not used then it will clear the files in your upload directory.")
 
-        args = parser.parse_args()
+        args = argparse.Namespace()
         args.reference = inputs['reference']
         args.history_name = inputs['name']
+        args.noextract = False
+        args.manual = False
+
         return args
 
     @staticmethod
@@ -95,6 +88,8 @@ class Run(object):
         try:
             runner = AutoSNVPhyl(args, inputs=inputs['fastqs'])
             result_path = runner.run()
+
+            # SNVPhyl finished, copy the zip to the NAS
             import shutil
             bio_request_folder = os.path.join(self.nas_mnt, 'bio_requests', inputs['name'])
             # Create folder with redmine id
@@ -106,21 +101,78 @@ class Run(object):
             self.t.time_print("Copying %s to %s" % (result_path, bio_request_folder))
             shutil.copy(result_path, bio_request_folder)
 
+            # Attach the file
+            url = 'http://redmine.biodiversity.agr.gc.ca/uploads.json'
+            headers = {'X-Redmine-API-Key': self.redmine_api_key, 'content-type': 'application/octet-stream'}
+            self.t.time_print("Uploading %s to redmine..." % result_path)
+            self.t.time_print("Sending POST request to %s" % url)
+            resp = requests.post(url, headers=headers, files={'SNVPhyl_%s_Results.zip': open(result_path, "rb")})
+            import json
+            if resp.status_code == 201:
+                token = json.loads(resp.content.decode("utf-8"))['upload']['token']
+                print(token)
+            else:
+                raise ValueError("Uploading error: status code %s, message %s" % (resp.status_code, resp.content.decode("utf-8")))
+
             # Respond on redmine
+            url = 'http://redmine.biodiversity.agr.gc.ca/issues/%d.json' % inputs['name']
+            headers = {'X-Redmine-API-Key': self.redmine_api_key, 'content-type': 'application/json'}
+            # TODO project id = 67
+            data = {
+                "issue": {
+                    "notes": "Completed running SNVPhyl.",
+                    "status_id": 4,  # Feedback
+                    "uploads": [
+                        {
+                            "token": token,
+                            "filename": "SNVPhyl_%s_Results.zip" % inputs['name'],
+                            "content_type": "application/zip"
+                        }
+                    ]
+                }
+            }
+
+            # Assign it back to the author
+            data['issue']["status_id"] = 4
+            import json
+            self.t.time_print("Sending GET request to %s" % url)
+            get = json.loads(requests.get(url, headers=headers).content.decode("utf-8"))
+            data['issue']['assigned_to_id'] = str(get['issue']['author']['id'])
+
+            self.t.time_print("Sending PUT request to %s" % url)
+            resp = requests.put(url, headers=headers, json=data)
+            print(resp.status_code)
 
         except Exception:
             import traceback
             self.t.time_print("[Warning] AutoSNVPhyl had a problem, continuing redmine api anyways.")
             self.t.time_print("[AutoSNVPhyl Error Dump]\n" + traceback.format_exc())
+            # Send response
+            url = 'http://redmine.biodiversity.agr.gc.ca/issues/%d.json' % inputs['name']
+            headers = {'X-Redmine-API-Key': self.redmine_api_key, 'content-type': 'application/json'}
+            # TODO project id = 67
+            data = {
+                "issue": {
+                    "notes": "There was a problem with your SNVPhyl. Please create a new issue on Redmine to re-run it."
+                             "\n%s" % traceback.format_exc(),
+                }
+            }
+
+            # Set it to feedback and assign it back to the author
+            data['issue']["status_id"] = 4
+            import json
+            get = json.loads(requests.get(url, headers=headers).content.decode("utf-8"))
+            data['issue']['assigned_to_id'] = str(get['issue']['author']['id'])
+
+            self.t.time_print("Sending PUT request to %s." % url)
+            resp = requests.put(url, headers=headers, json=data)
+            print(resp.status_code)
 
     def main_loop(self):
         import time
         while True:
-            try:
-                self.make_call()
-            except ValueError as e:
-                self.t.time_print("[Error] %s" % e)
-            time.sleep(100)
+            self.make_call()
+            time.sleep(1000)
 
     def make_call(self):
         url = "http://redmine.biodiversity.agr.gc.ca/projects/cfia/issues.json"
@@ -133,9 +185,10 @@ class Run(object):
         data = json.loads(resp.content.decode("utf-8"))
         for issue in data['issues']:
             if issue['id'] not in self.responded_issues and issue['status']['name'] == 'In Progress':
-                # if issue['subject'].lower() == 'snvphyl':
-                if issue['subject'].lower().startswith('snvphyl'):
+                if issue['subject'].lower() == 'snvphyl':
                     self.respond_to_issue(issue)
+
+        self.t.time_print("Finished call.")
 
     def respond_to_issue(self, issue):
         # Run snvphyl
@@ -143,7 +196,7 @@ class Run(object):
         self.t.time_print("Adding to responded to")
         # TODO addback> self.responded_issues.add(issue['id'])
         self.issue_loader.responded_issues = list(self.responded_issues)
-        self.issue_loader.dump(os.path.join(self.script_dir, 'responded_issues.json'))
+        self.issue_loader.dump()
 
         # Turn the description into a list of lines
         input_list = issue['description'].split('\n')
@@ -162,7 +215,6 @@ class Run(object):
         # Respond
         url = 'http://redmine.biodiversity.agr.gc.ca/issues/%d.json' % issue['id']
         headers = {'X-Redmine-API-Key': self.redmine_api_key, 'content-type': 'application/json'}
-        id = 67
         data = {
             "issue": {
                 "notes": response,
@@ -175,14 +227,17 @@ class Run(object):
             data['issue']['assigned_to_id'] = str(get['issue']['author']['id'])
             print(data)
         else:
+            # Set the issue to in progress since the SNVPhyl is running
             data['issue']["status_id"] = 2
 
+        self.t.time_print("Sending PUT request to %s" % url)
         resp = requests.put(url, headers=headers, json=data)
         print(resp.status_code)
 
         if error:
             return
-        self.run_snvphyl(inputs)
+        else:
+            self.run_snvphyl(inputs)
 
     @staticmethod
     def encode(key, string):
@@ -220,48 +275,22 @@ class Run(object):
         if not os.path.exists(os.path.join(self.script_dir, 'runner_logs')):
             os.makedirs(os.path.join(self.script_dir, 'runner_logs'))
         self.t = Timer(log_file=os.path.join(self.script_dir, 'runner_logs',
-                                        datetime.datetime.now().strftime("%d-%m-%Y_%S:%M:%H")))
+                                             datetime.datetime.now().strftime("%d-%m-%Y_%S:%M:%H")))
         self.t.set_colour(30)
 
         # Load issues that the bot has already responded to
         self.issue_loader = SaveLoad(os.path.join(self.script_dir, 'responded_issues.json'), create=True)
-        if "responded_issues" not in self.issue_loader.__dict__:
-            self.responded_issues = set()
-            self.issue_loader.responded_issues = list(self.responded_issues)
-            self.issue_loader.dump(os.path.join(self.script_dir, 'responded_issues.json'))
-        else:
-            self.responded_issues = set(self.issue_loader.responded_issues)
-
-        # Load the config
-        self.loader = SaveLoad(self.config_json)
-        import json.decoder
-        try:
-            # If there was no config file
-            if not self.loader.load(os.path.join(self.script_dir, "config.json"), create=True):
-                self.loader.ip = "http://192.168.1.3:48888/"
-                self.loader.api_key = "<API_KEY>"
-                self.loader.workflow_id = "f2db41e1fa331b3e"  # SNVPhyl paired end
-                self.loader.nasmnt = "/mnt/nas/"
-                self.loader.dump(os.path.join(self.script_dir, "config.json"))
-                self.loader.redmine_api_key = ""
-
-                self.t.time_print("Created config.json, please edit it and put in values.")
-                exit(1)
-        except json.decoder.JSONDecodeError:
-            self.t.time_print("[Error] Invalid config.json")
-            raise
-
-        if "redmine_api_key_encrypted" not in self.loader.__dict__:
-            self.t.time_print("[Error] Invalid config file config.json, missing \"redmine_api_key_encrypted\"")
-            sys.exit(1)
-
-        if 'nasmnt' not in self.loader.__dict__:
-            self.t.time_print('[Error] Can\'t find nasmnt in config file!')
-            sys.exit(1)
+        self.responded_issues = set(self.issue_loader.get('responded_issues', default=[], ask=False))
 
         # Get encrypted api key from config
-        self.redmine_api_key = self.loader.redmine_api_key_encrypted
-        self.nas_mnt = self.loader.nasmnt
+        # Load the config
+        self.loader = SaveLoad(self.config_json, create=True)
+        self.redmine_api_key = self.loader.get('redmine_api_key_encrypted', default='none', ask=False)
+
+        # If it's the first run then this will be yes
+        self.first_run = self.loader.get('first_run', default='yes', ask=False)
+
+        self.nas_mnt = os.path.normpath(self.loader.get('nasmnt', default="/mnt/nas/"))
         self.key = 'Sixteen byte key'
         self.main()
 
