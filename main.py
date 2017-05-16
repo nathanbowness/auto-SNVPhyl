@@ -133,7 +133,7 @@ class AutoSNVPhyl(object):
         history_state = self.gi.histories.show_history(self.history_id)["state"]
         while history_state != "ok":
             wait += 1
-            if wait > 60: # 10 minutes
+            if wait > 60:  # 10 minutes
                 self.t.time_print("Still waiting for workflow to finish.")
                 wait = 0
 
@@ -182,6 +182,7 @@ class AutoSNVPhyl(object):
         self.zip_results(folder)
 
         self.t.time_print("Completed")
+        # TODO fix list
         self.t.time_print("   --- List of all files used in the SNVPhyl ---   ")
         for file in self.logsequences:
             self.t.time_print(file)
@@ -260,7 +261,7 @@ class AutoSNVPhyl(object):
             # Finds the invalid lines and output them
             for line in open("retrieve.txt", "r"):
                 if line.rstrip("\n") not in ids and len(line.rstrip("\n")) > 2:
-                    self.t.time_print("Invalid seqid: \"%s\" -- Length %d" % (line.rstrip("\n"), len(line.rstrip("\n"))))
+                    self.t.time_print("Invalid seqid: \"%s\"" % line.rstrip("\n"))
 
         else:
             ids = self.inputs
@@ -270,7 +271,7 @@ class AutoSNVPhyl(object):
         for seqid in ids:
             for i in [1, 2]:
                 path_list.append(extractor.retrieve_file(seqid.rstrip("\n"), filetype="fastq_R" + str(i),
-                                                          getpathonly=True))
+                                                         getpathonly=True))
 
         if self.reference is not None:
             # Get fasta
@@ -282,7 +283,7 @@ class AutoSNVPhyl(object):
             # Since there is no reference specified, check for one in the upload directory
             self.t.time_print("No reference file specified, using the one in the upload directory")
             found_ref = False
-            for file in os.listdir(os.path.join(self.script_dir,'upload')):
+            for file in os.listdir(os.path.join(self.script_dir, 'upload')):
                 if file.endswith(".fasta"):
                     if not found_ref:
                         self.t.time_print("Found " + file + ", using it as a reference...")
@@ -297,7 +298,7 @@ class AutoSNVPhyl(object):
         return path_list
 
     def run_workflow(self):
-        contents = self.gi.histories.show_history(self.history_id,contents=True)
+        contents = self.gi.histories.show_history(self.history_id, contents=True)
 
         datamap = dict()
         found_ref = False
@@ -344,7 +345,7 @@ class AutoSNVPhyl(object):
         self.gi.workflows.invoke_workflow(self.WORKFLOW_ID, inputs=datamap, params=params, history_id=self.history_id)
 
     def build_list(self):
-        contents = self.gi.histories.show_history(self.history_id,contents=True)
+        contents = self.gi.histories.show_history(self.history_id, contents=True)
         fastqs = []
 
         # get fastq files
@@ -353,27 +354,27 @@ class AutoSNVPhyl(object):
                 fastqs.append(item)
 
         # pair fastq files
-        R1s = []
-        R2s = []
+        r1s = []
+        r2s = []
         for fastq in fastqs:
             result1 = re.findall(r"(.+)_[Rr]1", fastq["name"], flags=0)
             result2 = re.findall(r"(.+)_[Rr]2", fastq["name"], flags=0)
             if len(result1) >= 1:
                 fastq["name"] = result1[0]
-                R1s.append(fastq)
+                r1s.append(fastq)
             if len(result2) >= 1:
                 fastq["name"] = result2[0]
-                R2s.append(fastq)
+                r2s.append(fastq)
 
-        if len(R1s) != len(R2s):
+        if len(r1s) != len(r2s):
             self.t.time_print("[WARNING] There are different amounts of R1 and R2 files,"
                               " will only use ones that can be paired.")
 
         pairs = []
         done = []
 
-        for sequence in R1s:
-            for compare in R2s:
+        for sequence in r1s:
+            for compare in r2s:
                 if sequence["name"] == compare["name"] and sequence["name"] not in done:
                     # Pair them
                     elements = [
@@ -404,7 +405,7 @@ class AutoSNVPhyl(object):
         self.IP = config.get('ip', default="http://192.168.1.3:48888/")
         self.NASMNT = os.path.normpath(config.get('nasmnt', default="/mnt/nas/"))
 
-    def __init__(self, args, inputs=None):
+    def __init__(self, args_in, inputs=None):
         self.max_attempts = 10
         self.uploaded = []  # A list of all uploaded files
         self.logsequences = []
@@ -415,12 +416,14 @@ class AutoSNVPhyl(object):
         self.WORKFLOW_ID = None
         self.NASMNT = None
         self.inputs = inputs
+        self.gi = None
 
         # Add arguments
-        self.reference = args.reference
-        self.noextract = args.noextract
-        self.NAME = args.history_name if args.history_name is not None else "AutoSNVPhyl_%s" % time.strftime("%d-%m-%Y")
-        self.manual = args.manual
+        self.reference = args_in.reference
+        self.noextract = args_in.noextract
+        self.NAME = args_in.history_name if args_in.history_name is not None else "AutoSNVPhyl_%s"\
+                                                                                  % time.strftime("%d-%m-%Y")
+        self.manual = args_in.manual
 
         self.script_dir = sys.path[0]
         if not os.path.exists(os.path.join(self.script_dir, 'galaxy_logs')):

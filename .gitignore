@@ -1,3 +1,10 @@
+upload/*
 upload
 *.json
 .idea
+.idea/*
+runner_logs/*
+runner_logs
+results/*
+results
+testing.py

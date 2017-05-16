@@ -6,10 +6,8 @@
 
 import os
 import shutil
-import sys
 import glob
 from collections import defaultdict
-from pyaccessories.SaveLoad import SaveLoad
 
 
 class SequenceGetter(object):
@@ -18,8 +16,7 @@ class SequenceGetter(object):
         This will retrieve a file from the NAS and put it in the directory specified in the constructor
             Parameters:
                 seqid: sequence id
-                part: 1 or 2 (which part of the pair you want, R1 or R2)
-                filetype: either fasta or fastq
+                filetype: either fasta or fastq, if it's fastq put fastq_R1 or fastq_R2
                 getpathonly: return the path instead of retrieving the file
         """
 
@@ -95,7 +92,7 @@ class SequenceGetter(object):
                     del dirs[:]
 
         # External fastq
-        for root, dirs, files in walklevel(os.path.join(self.nasmnt,'External_MiSeq_Backup'), level=4):
+        for root, dirs, files in walklevel(os.path.join(self.nasmnt, 'External_MiSeq_Backup'), level=4):
             for x in files:
                 if x.endswith(".fastq.gz"):
                     self.file_dict[os.path.split(x)[-1].split('_')[0]].append(os.path.join(root, x))
