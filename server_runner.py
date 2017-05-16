@@ -191,7 +191,7 @@ class Run(object):
         import time
         while True:
             self.make_call()
-            exit(1)
+            exit()
             time.sleep(1000)
 
     def make_call(self):
@@ -200,12 +200,19 @@ class Run(object):
         headers = {'X-Redmine-API-Key': self.redmine_api_key}
         data = self.get_request_timeout(url, headers)
 
-        for issue in data['issues']:
-            if issue['id'] not in self.responded_issues and issue['status']['name'] == 'In Progress':
-                if issue['subject'].lower() == 'snvphyl':
-                    self.respond_to_issue(issue)
+        found = []
 
-        self.t.time_print("Finished call.")
+        for issue in data['issues']:
+            if issue['id'] not in self.responded_issues and issue['status']['name'] == 'New':
+                if issue['subject'].lower() == 'snvphyl':
+                    found.append(issue)
+
+        self.t.time_print("Found %d issues..." % len(found))
+
+        for issue in found:
+            self.respond_to_issue(issue)
+
+        self.t.time_print("Waiting for next check.")
 
     def respond_to_issue(self, issue):
         # Run snvphyl
@@ -290,6 +297,10 @@ class Run(object):
         resp = requests.get(url, headers=headers)
         tries = 0
         while resp.status_code != 200 and tries < 10:
+            if resp.status_code == 401:  # Unauthorized
+                self.t.time_print("Invalid Redmine api key!")
+                raise RedmineConnectionError("Invalid Redmine api key")
+
             self.t.time_print("GET request returned status code %d, with message %s. Waiting %ds to retry."
                               % (resp.status_code, resp.content.decode('utf-8'), wait))
             time.sleep(wait)
@@ -310,7 +321,7 @@ class Run(object):
         self.t.time_print("Sending PUT request to %s" % url)
         resp = requests.put(url, headers=headers, json=data)
         tries = 0
-        while (resp.status_code != 200 or resp.status_code != 201) and tries < 10:  # OK / Created
+        while (resp.status_code != 200 and resp.status_code != 201) and tries < 10:  # OK / Created
             self.t.time_print("PUT request returned status code %d, with message %s. Waiting %ds to retry."
                               % (resp.status_code, resp.content.decode('utf-8'), wait))
             time.sleep(wait)
@@ -357,7 +368,12 @@ class Run(object):
         self.loader.get('ip', default="http://192.168.1.3:48888/")
 
         self.key = 'Sixteen byte key'
-        self.main()
+        try:
+            self.main()
+        except Exception as e:
+            import traceback
+            self.t.time_print("[Error] Dumping...\n%s" % traceback.format_exc())
+            raise
 
 
 if __name__ == "__main__":
