@@ -146,10 +146,10 @@ class Run(object):
         # Parse input
         args = self.generate_args(inputs)
         # noinspection PyBroadException
+        from main import AutoSNVPhylError
         try:
             runner = AutoSNVPhyl(args, inputs=inputs['fastqs'])
             result_path = runner.run()
-
             # SNVPhyl finished, copy the zip to the NAS
             import shutil
             bio_request_folder = os.path.join(self.nas_mnt, 'bio_requests', inputs['name'])
@@ -165,7 +165,7 @@ class Run(object):
             # Respond on redmine
             self.completed_response(result_path, inputs['name'])
 
-        except Exception:
+        except Exception as e:
             import traceback
             self.t.time_print("[Warning] AutoSNVPhyl had a problem, continuing redmine api anyways.")
             self.t.time_print("[AutoSNVPhyl Error Dump]\n" + traceback.format_exc())
@@ -173,10 +173,15 @@ class Run(object):
             url = 'http://redmine.biodiversity.agr.gc.ca/issues/%s.json' % inputs['name']
             headers = {'X-Redmine-API-Key': self.redmine_api_key, 'content-type': 'application/json'}
             # TODO project id = 67
+            if type(e) == AutoSNVPhylError or ValueError:
+                msg = str(e)
+            else:
+                msg = traceback.format_exc()
+
             data = {
                 "issue": {
                     "notes": "There was a problem with your SNVPhyl. Please create a new issue on Redmine to re-run it."
-                             "\n%s" % traceback.format_exc(),
+                             "\n%s" % msg,
                 }
             }
 

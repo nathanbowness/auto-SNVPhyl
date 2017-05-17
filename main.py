@@ -22,6 +22,15 @@ from pyaccessories.TimeLog import Timer
 import zipfile
 
 
+class AutoSNVPhylError(ValueError):
+    """Raise when a specific subset of values in context of app is wrong"""
+
+    def __init__(self, message, *args):
+        self.message = message  # without this you may get DeprecationWarning
+        # allow users initialize misc. arguments as any other builtin Error
+        super(AutoSNVPhylError, self).__init__(message, *args)
+
+
 class AutoSNVPhyl(object):
     def run(self):
         try:
@@ -140,9 +149,10 @@ class AutoSNVPhyl(object):
             time.sleep(10)
             history_state = self.gi.histories.show_history(self.history_id)["state"]
             if history_state == "error":
-                print("Something went wrong! Check the galaxy history called " +
-                      self.gi.histories.show_history(self.history_id)["name"])
-                break
+                name = self.gi.histories.show_history(self.history_id)["name"]
+                self.t.time_print("Something went wrong with your SNVPhyl! Check the galaxy history called %s" % name)
+                raise AutoSNVPhylError("Something went wrong with your SNVPhyl! "
+                                       "Check the galaxy history called %s" % name)
 
         self.t.time_print("Workflow finished, downloading files...")
 
