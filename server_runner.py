@@ -1,19 +1,11 @@
 from pyaccessories.TimeLog import Timer
 import os
+from RedmineAPI.RedmineAPI import RedmineInterface
 from pyaccessories.SaveLoad import SaveLoad
 from main import AutoSNVPhyl
 import base64
 import requests
 # TODO documentation on how to request API key
-
-
-class RedmineConnectionError(ValueError):
-    """Raise when a specific subset of values in context of app is wrong"""
-
-    def __init__(self, message, *args):
-        self.message = message  # without this you may get DeprecationWarning
-        # allow users initialize misc. arguments as any other builtin Error
-        super(RedmineConnectionError, self).__init__(message, *args)
 
 
 class Run(object):
@@ -23,7 +15,6 @@ class Run(object):
         else:
             self.t.time_print("Would you like to set the redmine api key? (y/n)")
             choice = input()
-
         if choice == 'y':
             self.t.time_print("Enter your redmine api key (will be encrypted to file)")
             self.redmine_api_key = input()
@@ -32,6 +23,8 @@ class Run(object):
             self.loader.dump(self.config_json)
         else:
             self.redmine_api_key = self.decode(self.key, self.redmine_api_key)
+
+        self.redmine = RedmineInterface('http://redmine.biodiversity.agr.gc.ca/', self.redmine_api_key)
 
         self.main_loop()
 
@@ -93,54 +86,20 @@ class Run(object):
         return inputs
 
     def completed_response(self, result_path, redmine_id):
-        # Attach the file
-        url = 'http://redmine.biodiversity.agr.gc.ca/uploads.json'
-        headers = {'X-Redmine-API-Key': self.redmine_api_key, 'content-type': 'application/octet-stream'}
-        self.t.time_print("Uploading %s to redmine..." % result_path)
-        self.t.time_print("Sending POST request to %s" % url)
-        resp = requests.post(url, headers=headers, files={'SNVPhyl_%s_Results.zip': open(result_path, "rb")})
-        import json
-        err = ""
-        if resp.status_code == 201:
-            token = json.loads(resp.content.decode("utf-8"))['upload']['token']
-        else:
-            err = "Status code %s, Message %s" % (resp.status_code, resp.content.decode("utf-8"))
-            self.t.time_print("[Error] Problem uploading file to Redmine: " + err)
-
-        # Respond on redmine
-        # TODO project id = 67
-        if err == "":
-            # noinspection PyUnboundLocalVariable
-            data = {
-                "issue": {
-                    "notes": "Completed running SNVPhyl. Results stored at %s" % os.path.join("NAS/bio_requests/%s" %
-                                                                                              redmine_id),
-                    "status_id": 4,  # Feedback
-                    "uploads": [
-                        {
-                            "token": token,
-                            "filename": "SNVPhyl_%s_Results.zip" % redmine_id,
-                            "content_type": "application/zip"
-                        }
-                    ]
-                }
-            }
-        else:  # Error uploading file
-            data = {
-                "issue": {
-                    "notes": "Completed running SNVPhyl. Results stored at %s. "
-                             "However there was an error uploading your file to Redmine:\n %s"
-                             % (os.path.join("NAS/bio_requests/%s" % redmine_id), err),
-                    "status_id": 4,  # Feedback
-                }
-            }
+        from RedmineAPI.RedmineAPI import RedmineUploadError
+        notes = "Completed running SNVPhyl. Results stored at %s" % os.path.join("NAS/bio_requests/%s" %
+                                                                                              redmine_id)
+        try:
+            self.redmine.upload_file(result_path, redmine_id, 'application/zip',
+                                     file_name_once_uploaded="SNVPhyl_%s_Results.zip" % redmine_id)
+        except RedmineUploadError:
+            notes = "Couldn't upload your file to redmine. Results stored at %s" % \
+                  os.path.join("NAS/bio_requests/%s" % redmine_id)
 
         # Assign it back to the author
-        url = 'http://redmine.biodiversity.agr.gc.ca/issues/%s.json' % redmine_id
-        headers = {'X-Redmine-API-Key': self.redmine_api_key, 'content-type': 'application/json'}
-        get = self.get_request_timeout(url, headers)
-        data['issue']['assigned_to_id'] = str(get['issue']['author']['id'])
-        self.put_request_timeout(url, headers, data)
+        get = self.redmine.get_issue_data(redmine_id)
+
+        self.redmine.update_issue(redmine_id, notes, status_change=4, assign_to_id=get['issue']['author']['id'])
 
     def run_snvphyl(self, inputs):
         # Parse input
@@ -170,40 +129,32 @@ class Run(object):
             self.t.time_print("[Warning] AutoSNVPhyl had a problem, continuing redmine api anyways.")
             self.t.time_print("[AutoSNVPhyl Error Dump]\n" + traceback.format_exc())
             # Send response
-            url = 'http://redmine.biodiversity.agr.gc.ca/issues/%s.json' % inputs['name']
-            headers = {'X-Redmine-API-Key': self.redmine_api_key, 'content-type': 'application/json'}
-            # TODO project id = 67
             if type(e) == AutoSNVPhylError or ValueError:
                 msg = str(e)
             else:
                 msg = traceback.format_exc()
 
-            data = {
-                "issue": {
-                    "notes": "There was a problem with your SNVPhyl. Please create a new issue on Redmine to re-run it."
-                             "\n%s" % msg,
-                }
-            }
-
             # Set it to feedback and assign it back to the author
-            get = self.get_request_timeout(url, headers)
-            data['issue']["status_id"] = 4
-            data['issue']['assigned_to_id'] = str(get['issue']['author']['id'])
-
-            self.put_request_timeout(url, headers, data)
+            get = self.redmine.get_issue_data(inputs['name'])
+            self.redmine.update_issue(
+                                      inputs['name'],
+                                      notes="There was a problem with your SNVPhyl. Please create a new issue on"
+                                            " Redmine to re-run it.\n%s" % msg,
+                                      status_change=4,
+                                      assign_to_id=get['issue']['author']['id']
+                                      )
 
     def main_loop(self):
         import time
         while True:
             self.make_call()
-            exit()
-            time.sleep(1000)
+            self.t.time_print("Waiting for next check.")
+            time.sleep(600)
 
     def make_call(self):
         self.t.time_print("Checking for SNVPhyl requests...")
-        url = "http://redmine.biodiversity.agr.gc.ca/projects/cfia/issues.json"
-        headers = {'X-Redmine-API-Key': self.redmine_api_key}
-        data = self.get_request_timeout(url, headers)
+
+        data = self.redmine.get_new_issues('cfia')
 
         found = []
 
@@ -214,16 +165,14 @@ class Run(object):
 
         self.t.time_print("Found %d issues..." % len(found))
 
-        for issue in found:
-            self.respond_to_issue(issue)
-
-        self.t.time_print("Waiting for next check.")
+        while len(found) > 0:  # While there are still issues to respond to
+            self.respond_to_issue(found.pop(len(found)-1))
 
     def respond_to_issue(self, issue):
         # Run snvphyl
         self.t.time_print("Found SNVPhyl to run. Subject: %s. ID: %s" % (issue['subject'], issue['id']))
         self.t.time_print("Adding to responded to")
-        # TODO addback> self.responded_issues.add(issue['id'])
+        self.responded_issues.add(issue['id'])
         self.issue_loader.responded_issues = list(self.responded_issues)
         self.issue_loader.dump()
 
@@ -243,28 +192,17 @@ class Run(object):
 
         self.t.time_print('\n' + response)
 
-        # Respond
-        url = 'http://redmine.biodiversity.agr.gc.ca/issues/%s.json' % issue['id']
-        headers = {'X-Redmine-API-Key': self.redmine_api_key, 'content-type': 'application/json'}
-        data = {
-            "issue": {
-                "notes": response,
-            }
-        }
         if error:  # If something went wrong set the status to feedback and assign the author the issue
-            get = self.get_request_timeout(url, headers)
-            data['issue']["status_id"] = 4
-            data['issue']['assigned_to_id'] = str(get['issue']['author']['id'])
+            get = self.redmine.get_issue_data(issue['id'])
+            self.redmine.update_issue(issue['id'], notes=response, status_change=4,
+                                      assign_to_id=get['issue']['author']['id'])
         else:
             # Set the issue to in progress since the SNVPhyl is running
-            data['issue']["status_id"] = 2
-
-        self.put_request_timeout(url, headers, data)
+            self.redmine.update_issue(issue['id'], notes=response, status_change=2)
 
         if error:
             return
         else:
-            # noinspection PyUnboundLocalVariable
             self.run_snvphyl(inputs)
 
     @staticmethod
@@ -292,55 +230,9 @@ class Run(object):
 
         return decoded_string
 
-    def get_request_timeout(self, url, headers):
-        import json
-        import time
-
-        wait = 60
-
-        self.t.time_print("Sending GET request to %s" % url)
-        resp = requests.get(url, headers=headers)
-        tries = 0
-        while resp.status_code != 200 and tries < 10:
-            if resp.status_code == 401:  # Unauthorized
-                self.t.time_print("Invalid Redmine api key!")
-                raise RedmineConnectionError("Invalid Redmine api key")
-
-            self.t.time_print("GET request returned status code %d, with message %s. Waiting %ds to retry."
-                              % (resp.status_code, resp.content.decode('utf-8'), wait))
-            time.sleep(wait)
-            self.t.time_print("Retrying...")
-            resp = requests.get(url, headers=headers)
-            tries += 1
-        if tries >= 10:
-            raise RedmineConnectionError("Could not connect to redmine servers. Status code %d, message:\n%s"
-                                         % (resp.status_code, resp.content.decode('utf-8')))
-        else:
-            return json.loads(resp.content.decode("utf-8"))
-
-    def put_request_timeout(self, url, headers, data):
-        import time
-
-        wait = 60
-
-        self.t.time_print("Sending PUT request to %s" % url)
-        resp = requests.put(url, headers=headers, json=data)
-        tries = 0
-        while (resp.status_code != 200 and resp.status_code != 201) and tries < 10:  # OK / Created
-            self.t.time_print("PUT request returned status code %d, with message %s. Waiting %ds to retry."
-                              % (resp.status_code, resp.content.decode('utf-8'), wait))
-            time.sleep(wait)
-            self.t.time_print("Retrying...")
-            resp = requests.put(url, headers=headers, json=data)
-            tries += 1
-
-        if tries >= 10:
-            raise RedmineConnectionError("Could not connect to redmine servers. Status code %d, message:\n%s"
-                                         % (resp.status_code, resp.content.decode('utf-8')))
-        else:
-            return resp.status_code
-
     def __init__(self):
+        # import logging
+        # logging.basicConfig(level=logging.INFO)
         # Vars
         import sys
         self.script_dir = sys.path[0]
@@ -373,6 +265,9 @@ class Run(object):
         self.loader.get('ip', default="http://192.168.1.3:48888/")
 
         self.key = 'Sixteen byte key'
+
+        self.redmine = None
+
         try:
             self.main()
         except Exception as e:
