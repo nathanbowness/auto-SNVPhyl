@@ -10,8 +10,6 @@ import requests
 
 class Run(object):
     def main(self):
-        self.clear_space()
-        exit()
         if self.first_run == 'yes':
             choice = 'y'
         else:
@@ -150,35 +148,43 @@ class Run(object):
         import time
         while True:
             self.clear_space()
-            count += 1
             self.make_call()
             self.t.time_print("Waiting for next check.")
+            import sys  # TODO Remove
+            sys.exit(1)
             time.sleep(600)
 
     def clear_space(self):
         from bioblend.galaxy import GalaxyInstance
         from bioblend import ConnectionError
         gi = GalaxyInstance(self.loader.get('ip', default='http://192.168.1.3:48888/'), key=self.loader.get('api_key'))
+        self.t.time_print("Clearing space on Galaxy")
         problem = True
         while problem:
             problem = False
-            try:
-                available = gi.histories.get_histories()
-            except ConnectionError as e:
-                if e.status_code == 403:  # Invalid API key
-                    self.t.time_print("Invalid Galaxy API Key!")
-                    exit(1)
-                elif 'Max retries exceeded' in str(e.args[0]):
-                    self.t.time_print("Error: Galaxy isn't running/connection error.")
-                    problem = True
-                    self.t.time_print("Waiting 1 hour...")
-                    import time
-                    time.sleep(3600)
-                else:
-                    raise
+        try:
+            available = gi.histories.get_histories()
+        except ConnectionError as e:
+            if e.status_code == 403:  # Invalid API key
+                self.t.time_print("Invalid Galaxy API Key!")
+                exit(1)
+            elif 'Max retries exceeded' in str(e.args[0]):
+                self.t.time_print("Error: Galaxy isn't running/connection error.")
+                problem = True
 
+                self.t.time_print("Waiting 1 hour...")
+                import time
+                time.sleep(3600)
+            else:
+                raise
+        if len(available) > 4:
+            msg = 'Clearing data.'
+        else:
+            msg = 'Not clearing data.'
+
+        self.t.time_print("Currently %d histories on Galaxy. %s" % (len(available), msg))
         while len(available) > 4:
-            self.t.time_print("Deleting history %s to clear space..." % available[-1]['name'])
+            self.t.time_print("Deleting history %s to clear space..." % available.pop(len(available)-1)['name'])
             try:
                 gi.histories.delete_history(available[-1]['id'], purge=True)
             except ConnectionError as e:
