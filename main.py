@@ -18,6 +18,7 @@ import re
 import time
 from bioblend.galaxy import GalaxyInstance
 from bioblend.galaxy import dataset_collections as collections
+from bioblend import ConnectionError
 from pyaccessories.TimeLog import Timer
 import zipfile
 
@@ -60,7 +61,13 @@ class AutoSNVPhyl(object):
         # exit(0)
         # Create history in Galaxy
         self.t.time_print("Creating history " + self.NAME)
-        self.history_id = self.gi.histories.create_history(self.NAME)['id']
+        while True:
+            try:
+                self.history_id = self.gi.histories.create_history(self.NAME)['id']
+                break
+            except ConnectionError:
+                self.wait_for_problem()
+
         self.t.time_print(self.history_id)
 
         # Begin uploading files to Galaxy
@@ -101,16 +108,27 @@ class AutoSNVPhyl(object):
                 n += 1
 
         self.t.time_print("Waiting for files to finish uploading...")
-        while self.gi.histories.show_history(self.history_id)["state"] != "ok":
-            time.sleep(10)
+        while True:
+            try:
+                while self.gi.histories.show_history(self.history_id)["state"] != "ok":
+                    time.sleep(10)
+                break
+            except ConnectionError:
+                self.wait_for_problem()
 
         # Check if all the files are on galaxy and that there are no duplicate/extra files there
         # Create list that stores all the files on galaxy
         on_galaxy = []
+        while True:
+            try:
+                datasets = self.gi.histories.show_history(self.history_id, contents=True)
+                break
+            except ConnectionError:
+                self.wait_for_problem()
 
-        for dataset in self.gi.histories.show_history(self.history_id, contents=True):
+        for dataset in datasets:
             on_galaxy.append(dataset['name'])
-        print(on_galaxy)
+
         # Check for duplicate files
         count = {}
         for file in on_galaxy:
@@ -139,7 +157,13 @@ class AutoSNVPhyl(object):
         # Wait for workflow to finish
         self.t.time_print("Waiting for workflow to finish.")
         wait = 0
-        history_state = self.gi.histories.show_history(self.history_id)["state"]
+        while True:
+            try:
+                history_state = self.gi.histories.show_history(self.history_id)["state"]
+                break
+            except ConnectionError:
+                self.wait_for_problem()
+
         while history_state != "ok":
             wait += 1
             if wait > 60:  # 10 minutes
@@ -147,9 +171,15 @@ class AutoSNVPhyl(object):
                 wait = 0
 
             time.sleep(10)
-            history_state = self.gi.histories.show_history(self.history_id)["state"]
+            while True:
+                try:
+                    history_state = self.gi.histories.show_history(self.history_id)["state"]
+                    break
+                except ConnectionError:
+                    self.wait_for_problem()
+
             if history_state == "error":
-                name = self.gi.histories.show_history(self.history_id)["name"]
+                name = history_state["name"]
                 self.t.time_print("Something went wrong with your SNVPhyl! Check the galaxy history called %s" % name)
                 raise AutoSNVPhylError("Something went wrong with your SNVPhyl! "
                                        "Check the galaxy history called %s" % name)
@@ -174,13 +204,23 @@ class AutoSNVPhyl(object):
         self.t.time_print("Downloading files:")
 
         not_downloaded = to_download
-
-        for dataset in self.gi.histories.show_history(self.history_id, contents=True):
+        while True:
+            try:
+                datasets = self.gi.histories.show_history(self.history_id, contents=True)
+                break
+            except ConnectionError:
+                self.wait_for_problem()
+        for dataset in datasets:
             # Renames and downloads
             if dataset["name"] in to_download:
                 self.t.time_print("    Downloading %s to %s" % (dataset["name"], os.path.join(folder, dataset["name"])))
-                self.gi.datasets.download_dataset(dataset["id"], os.path.join(folder, dataset["name"]),
-                                                  wait_for_completion=True, use_default_filename=False)
+                while True:
+                    try:
+                        self.gi.datasets.download_dataset(dataset["id"], os.path.join(folder, dataset["name"]),
+                                                          wait_for_completion=True, use_default_filename=False)
+                        break
+                    except ConnectionError:
+                        self.wait_for_problem()
                 not_downloaded.remove(dataset["name"])
 
         if len(not_downloaded) > 0:
@@ -308,7 +348,12 @@ class AutoSNVPhyl(object):
         return path_list
 
     def run_workflow(self):
-        contents = self.gi.histories.show_history(self.history_id, contents=True)
+        while True:
+            try:
+                contents = self.gi.histories.show_history(self.history_id, contents=True)
+                break
+            except ConnectionError:
+                self.wait_for_problem()
 
         datamap = dict()
         found_ref = False
@@ -352,10 +397,21 @@ class AutoSNVPhyl(object):
 
         }
 
-        self.gi.workflows.invoke_workflow(self.WORKFLOW_ID, inputs=datamap, params=params, history_id=self.history_id)
+        while True:
+            try:
+                self.gi.workflows.invoke_workflow(self.WORKFLOW_ID, inputs=datamap,
+                                                  params=params, history_id=self.history_id)
+                break
+            except ConnectionError:
+                self.wait_for_problem()
 
     def build_list(self):
-        contents = self.gi.histories.show_history(self.history_id, contents=True)
+        while True:
+            try:
+                contents = self.gi.histories.show_history(self.history_id, contents=True)
+                break
+            except ConnectionError:
+                self.wait_for_problem()
         fastqs = []
 
         # get fastq files
@@ -395,7 +451,11 @@ class AutoSNVPhyl(object):
                     pairs.append(collections.CollectionElement(sequence["name"], type="paired", elements=elements))
 
         collection_description = collections.CollectionDescription("pair_list", type="list:paired", elements=pairs)
-        self.gi.histories.create_dataset_collection(self.history_id, collection_description)
+        while True:
+            try:
+                self.gi.histories.create_dataset_collection(self.history_id, collection_description)
+            except ConnectionError:
+                self.wait_for_problem()
 
     def load(self):
         from pyaccessories.SaveLoad import SaveLoad as SaveLoad
@@ -414,6 +474,36 @@ class AutoSNVPhyl(object):
 
         self.IP = config.get('ip', default="http://192.168.1.3:48888/")
         self.NASMNT = os.path.normpath(config.get('nasmnt', default="/mnt/nas/"))
+
+    def wait_for_problem(self):
+        import time
+        short_wait = 5
+        time_until_giveup = 36
+        count = 0
+        problem = True
+        while problem:
+            problem = False
+            try:
+                self.gi.histories.get_histories()
+            except ConnectionError as e:
+                if e.status_code == 403:  # Invalid API key
+                    self.t.time_print("Invalid Galaxy API Key!")
+                    exit(1)
+                elif 'Max retries exceeded' in str(e.args[0]):
+                    self.t.time_print("Error: Galaxy isn't running/connection error.")
+                    problem = True
+                    if short_wait > 1:
+                        self.t.time_print("Waiting 30 seconds...")
+                        time.sleep(30)
+                        short_wait -= 1
+                    else:
+                        self.t.time_print("Waiting 1 hour...")
+                        time_until_giveup -= 1
+                        if time_until_giveup < 1:
+                            raise
+                        time.sleep(3600)
+                else:
+                    raise
 
     def __init__(self, args_in, inputs=None):
         self.max_attempts = 10
