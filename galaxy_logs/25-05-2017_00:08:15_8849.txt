@@ -1,0 +1,59 @@
+2017-05-25 15:08:00,566 - INFO - [Elapsed time: 0.00] Creating history 8849
+2017-05-25 15:08:00,651 - INFO - [Elapsed time: 0.09] ebfb8f50c6abde6d
+2017-05-25 15:08:00,651 - INFO - [Elapsed time: 0.09] Uploading files to galaxy...
+2017-05-25 15:08:00,652 - INFO - [Elapsed time: 0.09] Finding files on the NAS...
+2017-05-25 15:08:02,462 - INFO - [Elapsed time: 1.90] Uploading files from the NAS...
+2017-05-25 15:08:02,462 - INFO - [Elapsed time: 1.90] 1 of 15: Uploading /mnt/nas/MiSeq_Backup/150203/2014-SEQ-0985_S29_L001_R1_001.fastq.gz
+2017-05-25 15:08:09,232 - INFO - [Elapsed time: 8.67] 2 of 15: Uploading /mnt/nas/MiSeq_Backup/150203/2014-SEQ-0985_S29_L001_R2_001.fastq.gz
+2017-05-25 15:08:35,263 - INFO - [Elapsed time: 34.70] 3 of 15: Uploading /mnt/nas/MiSeq_Backup/150203/2014-SEQ-0984_S28_L001_R1_001.fastq.gz
+2017-05-25 15:08:57,610 - INFO - [Elapsed time: 57.04] 4 of 15: Uploading /mnt/nas/MiSeq_Backup/150203/2014-SEQ-0984_S28_L001_R2_001.fastq.gz
+2017-05-25 15:09:26,289 - INFO - [Elapsed time: 85.72] 5 of 15: Uploading /mnt/nas/MiSeq_Backup/150203/2014-SEQ-0958_S2_L001_R1_001.fastq.gz
+2017-05-25 15:10:09,676 - INFO - [Elapsed time: 129.11] 6 of 15: Uploading /mnt/nas/MiSeq_Backup/150203/2014-SEQ-0958_S2_L001_R2_001.fastq.gz
+2017-05-25 15:10:45,849 - INFO - [Elapsed time: 165.28] 7 of 15: Uploading /mnt/nas/MiSeq_Backup/150203/2014-SEQ-0961_S5_L001_R1_001.fastq.gz
+2017-05-25 15:10:56,258 - INFO - [Elapsed time: 175.69] [Error Dump]
+Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/urllib3/connectionpool.py", line 377, in _make_request
+    httplib_response = conn.getresponse(buffering=True)
+TypeError: getresponse() got an unexpected keyword argument 'buffering'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/devon/PycharmProjects/auto-SNVPhyl/main.py", line 50, in run
+    return self.main()  # Return the path to the results zip
+  File "/home/devon/PycharmProjects/auto-SNVPhyl/main.py", line 82, in main
+    self.upload_file(file)
+  File "/home/devon/PycharmProjects/auto-SNVPhyl/main.py", line 239, in upload_file
+    self.gi.tools.upload_file(os.path.join(self.script_dir, "upload", path), self.history_id)
+  File "/usr/local/lib/python3.5/dist-packages/bioblend/galaxy/tools/__init__.py", line 149, in upload_file
+    return self._tool_post(payload, files_attached=True)
+  File "/usr/local/lib/python3.5/dist-packages/bioblend/galaxy/tools/__init__.py", line 219, in _tool_post
+    return Client._post(self, payload, files_attached=files_attached)
+  File "/usr/local/lib/python3.5/dist-packages/bioblend/galaxy/client.py", line 157, in _post
+    files_attached=files_attached)
+  File "/usr/local/lib/python3.5/dist-packages/bioblend/galaxyclient.py", line 125, in make_post_request
+    verify=self.verify, params=post_params)
+  File "/usr/lib/python3/dist-packages/requests/api.py", line 107, in post
+    return request('post', url, data=data, json=json, **kwargs)
+  File "/usr/lib/python3/dist-packages/requests/api.py", line 53, in request
+    return session.request(method=method, url=url, **kwargs)
+  File "/usr/lib/python3/dist-packages/requests/sessions.py", line 468, in request
+    resp = self.send(prep, **send_kwargs)
+  File "/usr/lib/python3/dist-packages/requests/sessions.py", line 576, in send
+    r = adapter.send(request, **kwargs)
+  File "/usr/lib/python3/dist-packages/requests/adapters.py", line 376, in send
+    timeout=timeout
+  File "/usr/lib/python3/dist-packages/urllib3/connectionpool.py", line 560, in urlopen
+    body=body, headers=headers)
+  File "/usr/lib/python3/dist-packages/urllib3/connectionpool.py", line 379, in _make_request
+    httplib_response = conn.getresponse()
+  File "/usr/lib/python3.5/http/client.py", line 1197, in getresponse
+    response.begin()
+  File "/usr/lib/python3.5/http/client.py", line 297, in begin
+    version, status, reason = self._read_status()
+  File "/usr/lib/python3.5/http/client.py", line 258, in _read_status
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+  File "/usr/lib/python3.5/socket.py", line 575, in readinto
+    return self._sock.recv_into(b)
+KeyboardInterrupt
+

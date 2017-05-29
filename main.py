@@ -16,8 +16,10 @@ import os
 import sys
 import re
 import time
+import requests
 from bioblend.galaxy import GalaxyInstance
 from bioblend.galaxy import dataset_collections as collections
+from bioblend import ConnectionError
 from pyaccessories.TimeLog import Timer
 import zipfile
 
@@ -41,7 +43,7 @@ class AutoSNVPhyl(object):
                 # No reference and it isn't using files in upload folder
                 self.t.time_print("No reference file specified with -r, please input one or use the --manual"
                                   " flag to use a reference file that you put in the upload folder.")
-                sys.exit(1)
+                exit(1)
 
             if self.noextract and not self.manual:
                 self.t.time_print("[Warning] Using manual flag since noextract was specified without manual.")
@@ -60,7 +62,13 @@ class AutoSNVPhyl(object):
         # exit(0)
         # Create history in Galaxy
         self.t.time_print("Creating history " + self.NAME)
-        self.history_id = self.gi.histories.create_history(self.NAME)['id']
+        while True:
+            try:
+                self.history_id = self.gi.histories.create_history(self.NAME)['id']
+                break
+            except (ConnectionError, requests.exceptions.ConnectionError):
+                self.wait_for_problem()
+
         self.t.time_print(self.history_id)
 
         # Begin uploading files to Galaxy
@@ -101,16 +109,29 @@ class AutoSNVPhyl(object):
                 n += 1
 
         self.t.time_print("Waiting for files to finish uploading...")
-        while self.gi.histories.show_history(self.history_id)["state"] != "ok":
-            time.sleep(10)
+        while True:
+            try:
+                while self.gi.histories.show_history(self.history_id)["state"] != "ok":
+                    time.sleep(10)
+                break
+            except (ConnectionError, requests.exceptions.ConnectionError):
+                self.wait_for_problem()
 
         # Check if all the files are on galaxy and that there are no duplicate/extra files there
         # Create list that stores all the files on galaxy
         on_galaxy = []
+        while True:
+            try:
+                datasets = self.gi.histories.show_history(self.history_id, contents=True)
+                break
+            except (ConnectionError, requests.exceptions.ConnectionError):
+                self.wait_for_problem()
 
-        for dataset in self.gi.histories.show_history(self.history_id, contents=True):
+        for dataset in datasets:
             on_galaxy.append(dataset['name'])
+
         print(on_galaxy)
+        print(self.uploaded)
         # Check for duplicate files
         count = {}
         for file in on_galaxy:
@@ -126,9 +147,10 @@ class AutoSNVPhyl(object):
             if file not in on_galaxy:
                 self.t.time_print("[Error] File %s wasn't uploaded to galaxy! (maybe it wasn't decompressed properly"
                                   " by Galaxy)" % file)
-                sys.exit(1)
+                raise AutoSNVPhylError("File %s wasn't uploaded to galaxy! (maybe it wasn't decompressed properly"
+                                       " by Galaxy)" % file)
 
-        self.t.time_print("Finished uploading...")
+        self.t.time_print("Finished uploading.")
         self.t.time_print("Building list of dataset pairs...")
         self.build_list()
 
@@ -139,7 +161,13 @@ class AutoSNVPhyl(object):
         # Wait for workflow to finish
         self.t.time_print("Waiting for workflow to finish.")
         wait = 0
-        history_state = self.gi.histories.show_history(self.history_id)["state"]
+        while True:
+            try:
+                history_state = self.gi.histories.show_history(self.history_id)["state"]
+                break
+            except (ConnectionError, requests.exceptions.ConnectionError):
+                self.wait_for_problem()
+
         while history_state != "ok":
             wait += 1
             if wait > 60:  # 10 minutes
@@ -147,9 +175,15 @@ class AutoSNVPhyl(object):
                 wait = 0
 
             time.sleep(10)
-            history_state = self.gi.histories.show_history(self.history_id)["state"]
+            while True:
+                try:
+                    history_state = self.gi.histories.show_history(self.history_id)["state"]
+                    break
+                except (ConnectionError, requests.exceptions.ConnectionError):
+                    self.wait_for_problem()
+
             if history_state == "error":
-                name = self.gi.histories.show_history(self.history_id)["name"]
+                name = history_state["name"]
                 self.t.time_print("Something went wrong with your SNVPhyl! Check the galaxy history called %s" % name)
                 raise AutoSNVPhylError("Something went wrong with your SNVPhyl! "
                                        "Check the galaxy history called %s" % name)
@@ -174,13 +208,23 @@ class AutoSNVPhyl(object):
         self.t.time_print("Downloading files:")
 
         not_downloaded = to_download
-
-        for dataset in self.gi.histories.show_history(self.history_id, contents=True):
+        while True:
+            try:
+                datasets = self.gi.histories.show_history(self.history_id, contents=True)
+                break
+            except (ConnectionError, requests.exceptions.ConnectionError):
+                self.wait_for_problem()
+        for dataset in datasets:
             # Renames and downloads
             if dataset["name"] in to_download:
                 self.t.time_print("    Downloading %s to %s" % (dataset["name"], os.path.join(folder, dataset["name"])))
-                self.gi.datasets.download_dataset(dataset["id"], os.path.join(folder, dataset["name"]),
-                                                  wait_for_completion=True, use_default_filename=False)
+                while True:
+                    try:
+                        self.gi.datasets.download_dataset(dataset["id"], os.path.join(folder, dataset["name"]),
+                                                          wait_for_completion=True, use_default_filename=False)
+                        break
+                    except (ConnectionError, requests.exceptions.ConnectionError):
+                        self.wait_for_problem()
                 not_downloaded.remove(dataset["name"])
 
         if len(not_downloaded) > 0:
@@ -233,18 +277,31 @@ class AutoSNVPhyl(object):
         from bioblend import ConnectionError as bioblendConnectionError
         import time
         attempts = 0
-        download = True
-        while download:
+        while True:
             try:
+                # TODO its uploading the file but not decompressing it???
+                self.t.time_print("Uploading...")
                 self.gi.tools.upload_file(os.path.join(self.script_dir, "upload", path), self.history_id)
-                download = False
+                return
             except bioblendConnectionError:
                 if attempts < self.max_attempts:
                     attempts += 1
                     self.t.time_print("[Warning] Failed to upload %s, retrying (attempt %d of %d)" %
                                       (path, attempts, self.max_attempts))
                     time.sleep(5)
-                    download = True
+                    continue
+                else:
+                    self.t.time_print("[Error] Failed to upload %s, after %d attempts." %
+                                      (path, self.max_attempts))
+                    raise
+            except requests.exceptions.ConnectionError:
+                if attempts < self.max_attempts:
+                    attempts += 1
+                    self.t.time_print("Galaxy isn't responding...")
+                    self.wait_for_problem()
+                    self.t.time_print("[Warning] Failed to upload %s, retrying (attempt %d of %d)" %
+                                      (path, attempts, self.max_attempts))
+                    continue
                 else:
                     self.t.time_print("[Error] Failed to upload %s, after %d attempts." %
                                       (path, self.max_attempts))
@@ -266,7 +323,7 @@ class AutoSNVPhyl(object):
                 # create blank file
                 open(path_to_list, "w").close()
                 print("Please enter SEQids in the retrieve.txt file")
-                sys.exit(1)
+                exit(1)
 
             # Finds the invalid lines and output them
             for line in open("retrieve.txt", "r"):
@@ -300,15 +357,20 @@ class AutoSNVPhyl(object):
                         found_ref = True
                     else:
                         self.t.time_print("[Error] Found another reference file in upload folder, please only use one.")
-                        sys.exit(1)
+                        exit(1)
             if not found_ref:
                 self.t.time_print("[Error] No reference file(fasta) found. Cannot run.")
-                sys.exit(1)
+                exit(1)
 
         return path_list
 
     def run_workflow(self):
-        contents = self.gi.histories.show_history(self.history_id, contents=True)
+        while True:
+            try:
+                contents = self.gi.histories.show_history(self.history_id, contents=True)
+                break
+            except (ConnectionError, requests.exceptions.ConnectionError):
+                self.wait_for_problem()
 
         datamap = dict()
         found_ref = False
@@ -330,11 +392,11 @@ class AutoSNVPhyl(object):
 
         if not found_ref:
             self.t.time_print("[Error] Can't find a reference on Galaxy.")
-            sys.exit(1)
+            raise AutoSNVPhylError("Can't find a reference on Galaxy.")
         if not found_collection:
 
             self.t.time_print("[Error] Can't find list of dataset pairs on Galaxy.")
-            sys.exit(1)
+            raise AutoSNVPhylError("Can't find list of dataset pairs on Galaxy.")
 
         min_coverage = "10"
         min_mean_mapping = "30"
@@ -352,10 +414,21 @@ class AutoSNVPhyl(object):
 
         }
 
-        self.gi.workflows.invoke_workflow(self.WORKFLOW_ID, inputs=datamap, params=params, history_id=self.history_id)
+        while True:
+            try:
+                self.gi.workflows.invoke_workflow(self.WORKFLOW_ID, inputs=datamap,
+                                                  params=params, history_id=self.history_id)
+                break
+            except (ConnectionError, requests.exceptions.ConnectionError):
+                self.wait_for_problem()
 
     def build_list(self):
-        contents = self.gi.histories.show_history(self.history_id, contents=True)
+        while True:
+            try:
+                contents = self.gi.histories.show_history(self.history_id, contents=True)
+                break
+            except (ConnectionError, requests.exceptions.ConnectionError):
+                self.wait_for_problem()
         fastqs = []
 
         # get fastq files
@@ -395,7 +468,11 @@ class AutoSNVPhyl(object):
                     pairs.append(collections.CollectionElement(sequence["name"], type="paired", elements=elements))
 
         collection_description = collections.CollectionDescription("pair_list", type="list:paired", elements=pairs)
-        self.gi.histories.create_dataset_collection(self.history_id, collection_description)
+        while True:
+            try:
+                self.gi.histories.create_dataset_collection(self.history_id, collection_description)
+            except (ConnectionError, requests.exceptions.ConnectionError):
+                self.wait_for_problem()
 
     def load(self):
         from pyaccessories.SaveLoad import SaveLoad as SaveLoad
@@ -405,15 +482,45 @@ class AutoSNVPhyl(object):
         self.API_KEY = config.get('api_key')
         if not re.match(r"^\w{32}$", self.API_KEY):
             self.t.time_print("Invalid Galaxy API key.")
-            sys.exit(1)
+            exit(1)
 
         self.WORKFLOW_ID = config.get('workflow_id', default='f2db41e1fa331b3e')  # SNVPhyl paired end
         if not re.match(r"^\w{16}$", self.WORKFLOW_ID):
             self.t.time_print("Invalid workflow ID format.")
-            sys.exit(1)
+            exit(1)
 
         self.IP = config.get('ip', default="http://192.168.1.3:48888/")
         self.NASMNT = os.path.normpath(config.get('nasmnt', default="/mnt/nas/"))
+
+    def wait_for_problem(self):
+        import time
+        short_wait = 5
+        time_until_giveup = 36
+        problem = True
+        while problem:
+            problem = False
+            try:
+                self.gi.histories.get_histories()
+                return
+            except (ConnectionError, requests.exceptions.ConnectionError) as e:
+                if e.status_code == 403:  # Invalid API key
+                    self.t.time_print("Invalid Galaxy API Key!")
+                    exit(1)
+                elif 'Max retries exceeded' in str(e.args[0]):
+                    self.t.time_print("Error: Galaxy isn't running/connection error.")
+                    problem = True
+                    if short_wait > 1:
+                        self.t.time_print("Waiting 30 seconds...")
+                        time.sleep(30)
+                        short_wait -= 1
+                    else:
+                        self.t.time_print("Waiting 1 hour...")
+                        time_until_giveup -= 1
+                        if time_until_giveup < 1:
+                            raise
+                        time.sleep(3600)
+                else:
+                    raise
 
     def __init__(self, args_in, inputs=None):
         self.max_attempts = 10
@@ -467,7 +574,7 @@ if __name__ == "__main__":
     # If no arguments
     if len(sys.argv) == 1:
         parser.print_help()
-        sys.exit(1)
+        exit(1)
 
     args = parser.parse_args()
     runner = AutoSNVPhyl(args)

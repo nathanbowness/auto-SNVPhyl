@@ -1,0 +1,43 @@
+2017-05-19 13:42:29,301 - INFO - [Elapsed time: 0.01] Creating history AutoSNVPhyl_19-05-2017
+2017-05-19 13:42:29,383 - INFO - [Elapsed time: 0.09] 1fad1eaf5f4f1766
+2017-05-19 13:42:29,383 - INFO - [Elapsed time: 0.09] Uploading files to galaxy...
+2017-05-19 13:42:29,383 - INFO - [Elapsed time: 0.09] Finding files on the NAS...
+2017-05-19 13:42:31,655 - INFO - [Elapsed time: 2.37] Uploading files from the NAS...
+2017-05-19 13:42:31,656 - INFO - [Elapsed time: 2.37] 1 of 7: Uploading /mnt/nas/External_MiSeq_Backup/GTA/170505/2017-GTA-0058_S15_L001_R1_001.fastq.gz
+2017-05-19 13:42:43,554 - INFO - [Elapsed time: 14.26] 2 of 7: Uploading /mnt/nas/External_MiSeq_Backup/GTA/170505/2017-GTA-0058_S15_L001_R2_001.fastq.gz
+2017-05-19 13:43:02,595 - INFO - [Elapsed time: 33.31] 3 of 7: Uploading /mnt/nas/External_MiSeq_Backup/GTA/170505/2017-GTA-0059_S16_L001_R1_001.fastq.gz
+2017-05-19 13:43:25,881 - INFO - [Elapsed time: 56.59] 4 of 7: Uploading /mnt/nas/External_MiSeq_Backup/GTA/170505/2017-GTA-0059_S16_L001_R2_001.fastq.gz
+2017-05-19 13:44:00,064 - INFO - [Elapsed time: 90.77] 5 of 7: Uploading /mnt/nas/MiSeq_Backup/170428/2017-SEQ-0082_S10_L001_R1_001.fastq.gz
+2017-05-19 13:44:05,592 - INFO - [Elapsed time: 96.30] 6 of 7: Uploading /mnt/nas/MiSeq_Backup/170428/2017-SEQ-0082_S10_L001_R2_001.fastq.gz
+2017-05-19 13:44:26,804 - INFO - [Elapsed time: 117.52] 7 of 7: Uploading /mnt/nas/WGSspades/170317_Assembled_1/BestAssemblies/2016-SEQ-1310.fasta
+2017-05-19 13:45:07,760 - INFO - [Elapsed time: 158.47] Waiting for files to finish uploading...
+2017-05-19 13:45:48,081 - INFO - [Elapsed time: 198.79] Finished uploading...
+2017-05-19 13:45:48,082 - INFO - [Elapsed time: 198.79] Building list of dataset pairs...
+2017-05-19 13:45:48,381 - INFO - [Elapsed time: 199.09] Starting workflow...
+2017-05-19 13:45:58,659 - INFO - [Elapsed time: 209.37] Waiting for workflow to finish.
+2017-05-19 13:56:01,387 - INFO - [Elapsed time: 812.10] Still waiting for workflow to finish.
+2017-05-19 14:06:14,404 - INFO - [Elapsed time: 1425.11] Still waiting for workflow to finish.
+2017-05-19 14:09:55,571 - INFO - [Elapsed time: 1646.28] Workflow finished, downloading files...
+2017-05-19 14:09:55,572 - INFO - [Elapsed time: 1646.28] Creating directory AutoSNVPhyl_19-05-2017.
+2017-05-19 14:09:55,572 - INFO - [Elapsed time: 1646.28] Downloading files:
+2017-05-19 14:09:55,671 - INFO - [Elapsed time: 1646.38]     Downloading snvTable.tsv to /home/devon/PycharmProjects/auto-SNVPhyl/results/AutoSNVPhyl_19-05-2017/snvTable.tsv
+2017-05-19 14:09:56,027 - INFO - [Elapsed time: 1646.74]     Downloading vcf2core.tsv to /home/devon/PycharmProjects/auto-SNVPhyl/results/AutoSNVPhyl_19-05-2017/vcf2core.tsv
+2017-05-19 14:09:56,341 - INFO - [Elapsed time: 1647.05]     Downloading snvAlignment.phy to /home/devon/PycharmProjects/auto-SNVPhyl/results/AutoSNVPhyl_19-05-2017/snvAlignment.phy
+2017-05-19 14:09:56,646 - INFO - [Elapsed time: 1647.36]     Downloading filterStats.txt to /home/devon/PycharmProjects/auto-SNVPhyl/results/AutoSNVPhyl_19-05-2017/filterStats.txt
+2017-05-19 14:09:56,896 - INFO - [Elapsed time: 1647.61]     Downloading phylogeneticTree.newick to /home/devon/PycharmProjects/auto-SNVPhyl/results/AutoSNVPhyl_19-05-2017/phylogeneticTree.newick
+2017-05-19 14:09:57,194 - INFO - [Elapsed time: 1647.90]     Downloading phylogeneticTreeStats.txt to /home/devon/PycharmProjects/auto-SNVPhyl/results/AutoSNVPhyl_19-05-2017/phylogeneticTreeStats.txt
+2017-05-19 14:09:57,479 - INFO - [Elapsed time: 1648.19]     Downloading snvMatrix.tsv to /home/devon/PycharmProjects/auto-SNVPhyl/results/AutoSNVPhyl_19-05-2017/snvMatrix.tsv
+2017-05-19 14:09:57,755 - INFO - [Elapsed time: 1648.47] Creating zip file /home/devon/PycharmProjects/auto-SNVPhyl/results/AutoSNVPhyl_19-05-2017/AutoSNVPhyl_19-05-2017.zip
+2017-05-19 14:09:57,756 - INFO - [Elapsed time: 1648.47] Zipped snvMatrix.tsv
+2017-05-19 14:09:57,756 - INFO - [Elapsed time: 1648.47] Zipped phylogeneticTreeStats.txt
+2017-05-19 14:09:57,756 - INFO - [Elapsed time: 1648.47] Zipped phylogeneticTree.newick
+2017-05-19 14:09:57,756 - INFO - [Elapsed time: 1648.47] Zipped filterStats.txt
+2017-05-19 14:09:57,757 - INFO - [Elapsed time: 1648.47] Zipped snvAlignment.phy
+2017-05-19 14:09:57,757 - INFO - [Elapsed time: 1648.47] Zipped vcf2core.tsv
+2017-05-19 14:09:57,759 - INFO - [Elapsed time: 1648.47] Zipped snvTable.tsv
+2017-05-19 14:09:57,759 - INFO - [Elapsed time: 1648.47] Completed
+2017-05-19 14:09:57,759 - INFO - [Elapsed time: 1648.47]    --- List of all files used in the SNVPhyl ---   
+2017-05-19 14:09:57,760 - INFO - [Elapsed time: 1648.47] 2017-GTA-0058
+2017-05-19 14:09:57,760 - INFO - [Elapsed time: 1648.47] 2017-GTA-0059
+2017-05-19 14:09:57,760 - INFO - [Elapsed time: 1648.47] 2017-SEQ-0082
+2017-05-19 14:09:57,760 - INFO - [Elapsed time: 1648.47] 2016-SEQ-1310
