@@ -5,7 +5,7 @@ from pyaccessories.SaveLoad import SaveLoad
 from main import AutoSNVPhyl
 import base64
 import requests
-# TODO documentation on how to request API key
+# TODO documentation
 
 
 class Run(object):
@@ -18,10 +18,12 @@ class Run(object):
         if choice == 'y':
             self.t.time_print("Enter your redmine api key (will be encrypted to file)")
             self.redmine_api_key = input()
+            # Encode and send to json file
             self.loader.redmine_api_key_encrypted = self.encode(self.key, self.redmine_api_key).decode('utf-8')
             self.loader.first_run = 'no'
             self.loader.dump(self.config_json)
         else:
+            # Import and decode from file
             self.redmine_api_key = self.decode(self.key, self.redmine_api_key)
 
         self.redmine = RedmineInterface('http://redmine.biodiversity.agr.gc.ca/', self.redmine_api_key)
@@ -58,7 +60,7 @@ class Run(object):
             elif line.lower().startswith('compare') and len(line) < len('compare') + 3:
                 mode = 'comp'
                 continue
-            elif line == '':
+            elif line.lower() == '':
                 # Blank line
                 mode = 'none'
                 continue
@@ -150,8 +152,6 @@ class Run(object):
             self.clear_space()
             self.make_call()
             self.t.time_print("Waiting for next check.")
-            import sys  # TODO Remove
-            sys.exit(1)
             time.sleep(600)
 
     def clear_space(self):
@@ -159,24 +159,23 @@ class Run(object):
         from bioblend import ConnectionError
         gi = GalaxyInstance(self.loader.get('ip', default='http://192.168.1.3:48888/'), key=self.loader.get('api_key'))
         self.t.time_print("Clearing space on Galaxy")
-        problem = True
-        while problem:
-            problem = False
-        try:
-            available = gi.histories.get_histories()
-        except ConnectionError as e:
-            if e.status_code == 403:  # Invalid API key
-                self.t.time_print("Invalid Galaxy API Key!")
-                exit(1)
-            elif 'Max retries exceeded' in str(e.args[0]):
-                self.t.time_print("Error: Galaxy isn't running/connection error.")
-                problem = True
 
-                self.t.time_print("Waiting 1 hour...")
-                import time
-                time.sleep(3600)
-            else:
-                raise
+        while True:
+            try:
+                available = gi.histories.get_histories()  # Ping galaxy
+                break
+            except ConnectionError as e:
+                if e.status_code == 403:  # Invalid API key
+                    self.t.time_print("Invalid Galaxy API Key!")
+                    exit(1)
+                elif 'Max retries exceeded' in str(e.args[0]):
+                    self.t.time_print("Error: Galaxy isn't running/connection error.")
+                    self.t.time_print("Waiting 1 hour...")
+                    import time
+                    time.sleep(3600)
+                else:
+                    raise
+
         if len(available) > 4:
             msg = 'Clearing data.'
         else:
@@ -233,6 +232,8 @@ class Run(object):
             response = "Running SNVPhyl with reference %s\n\nComparing to:" % inputs['reference']
             for fastq in list(inputs['fastqs']):
                 response += '\n' + fastq
+            if inputs['reference'] not in inputs['fastqs']:
+                response += "Did you mean to not compare the reference to itself?"  # TODO ask for answer
         except ValueError as e:
             response = "Sorry, there was a problem with your SNVPhyl request:\n%s\n" \
                        "Please submit a new request and close this one." % e.args[0]

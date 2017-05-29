@@ -42,7 +42,7 @@ class SequenceGetter(object):
                             shutil.copy(path, outpath)
 
             else:
-                msg = "Missing file " + seqid
+                raise ExtractionError("Missing file " + seqid)
         # Get a fasta file
         elif filetype == "fasta":
             # Check if in master list, extract the two paths and copy to output folder
@@ -56,7 +56,7 @@ class SequenceGetter(object):
                     shutil.copy(path, outpath)
 
             else:
-                msg = "Missing file " + seqid
+                raise ExtractionError("Missing file " + seqid)
         else:
             raise ValueError("Invalid filetype " + filetype)
 
@@ -108,3 +108,12 @@ class SequenceGetter(object):
         self.outputfolder = outputfolder
         self.output = output
         self.get_file_list()
+
+
+class ExtractionError(ValueError):
+    """Can't find file to extract"""
+
+    def __init__(self, message, *args):
+        self.message = message  # without this you may get DeprecationWarning
+        # allow users initialize misc. arguments as any other builtin Error
+        super(ExtractionError, self).__init__(message, *args)
