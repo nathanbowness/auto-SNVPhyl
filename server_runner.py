@@ -152,7 +152,7 @@ class Run(object):
             self.clear_space()
             self.make_call()
             self.t.time_print("Waiting for next check.")
-            time.sleep(600)  # 10 minutes
+            time.sleep(self.seconds_between_redmine_checks)
 
     def clear_space(self):
         from bioblend.galaxy import GalaxyInstance
@@ -182,7 +182,7 @@ class Run(object):
             msg = 'Not clearing data.'
 
         self.t.time_print("Currently %d histories on Galaxy. %s" % (len(available), msg))
-        while len(available) > 4:
+        while len(available) > self.max_histories:
             self.t.time_print("Deleting history %s to clear space..." % available.pop(len(available)-1)['name'])
             try:
                 gi.histories.delete_history(available[-1]['id'], purge=True)
@@ -309,6 +309,7 @@ class Run(object):
 
         self.nas_mnt = os.path.normpath(self.loader.get('nasmnt', default="/mnt/nas/"))
         self.max_histories = self.loader.get('max_histories', default=6)
+        self.seconds_between_redmine_checks = self.loader.get('seconds_between_redmine_checks', default=600)
 
         # Make sure all the arguments are there
         self.loader.get('workflow_id', default="f2db41e1fa331b3e")
