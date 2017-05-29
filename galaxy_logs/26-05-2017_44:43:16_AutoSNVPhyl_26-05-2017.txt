@@ -1,0 +1,16 @@
+2017-05-26 16:43:44,822 - INFO - [Elapsed time: 0.00] Creating history AutoSNVPhyl_26-05-2017
+2017-05-26 16:43:44,869 - INFO - [Elapsed time: 0.05] 9c18ad129e678b2a
+2017-05-26 16:43:44,869 - INFO - [Elapsed time: 0.05] Uploading files to galaxy...
+2017-05-26 16:43:44,870 - INFO - [Elapsed time: 0.05] Finding files on the NAS...
+2017-05-26 16:43:44,873 - INFO - [Elapsed time: 0.05] [Error Dump]
+Traceback (most recent call last):
+  File "main.py", line 52, in run
+    return self.main()  # Return the path to the results zip
+  File "main.py", line 82, in main
+    to_upload = self.extract_files()
+  File "main.py", line 311, in extract_files
+    from sequence_getter import SequenceGetter
+  File "/home/devon/PycharmProjects/auto-SNVPhyl/sequence_getter.py", line 113, in <module>
+    class ExtractionError(ExtractionError):
+NameError: name 'ExtractionError' is not defined
+

@@ -1,0 +1,160 @@
+2017-05-26 14:50:30,208 - INFO - [Elapsed time: 0.00] Creating history 8857
+2017-05-26 14:50:30,305 - INFO - [Elapsed time: 0.10] d071e794759ab192
+2017-05-26 14:50:30,305 - INFO - [Elapsed time: 0.10] Uploading files to galaxy...
+2017-05-26 14:50:30,305 - INFO - [Elapsed time: 0.10] Finding files on the NAS...
+2017-05-26 14:50:31,055 - INFO - [Elapsed time: 0.85] Uploading files from the NAS...
+2017-05-26 14:50:31,056 - INFO - [Elapsed time: 0.85] 1 of 7: Uploading /mnt/nas/MiSeq_Backup/141017/2014-SEQ-0484_S8_L001_R1_001.fastq.gz
+2017-05-26 14:50:36,105 - INFO - [Elapsed time: 5.90] 2 of 7: Uploading /mnt/nas/MiSeq_Backup/141017/2014-SEQ-0484_S8_L001_R2_001.fastq.gz
+2017-05-26 14:50:41,575 - INFO - [Elapsed time: 11.37] 3 of 7: Uploading /mnt/nas/MiSeq_Backup/150210/2014-SEQ-1023_S11_L001_R1_001.fastq.gz
+2017-05-26 14:50:50,389 - INFO - [Elapsed time: 20.18] 4 of 7: Uploading /mnt/nas/MiSeq_Backup/150210/2014-SEQ-1023_S11_L001_R2_001.fastq.gz
+2017-05-26 14:50:53,085 - INFO - [Elapsed time: 22.88] 5 of 7: Uploading /mnt/nas/MiSeq_Backup/150210/2014-SEQ-1032_S20_L001_R1_001.fastq.gz
+2017-05-26 14:51:24,641 - INFO - [Elapsed time: 54.43] [Error Dump]
+Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/urllib3/connectionpool.py", line 377, in _make_request
+    httplib_response = conn.getresponse(buffering=True)
+TypeError: getresponse() got an unexpected keyword argument 'buffering'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/urllib3/connectionpool.py", line 560, in urlopen
+    body=body, headers=headers)
+  File "/usr/lib/python3/dist-packages/urllib3/connectionpool.py", line 379, in _make_request
+    httplib_response = conn.getresponse()
+  File "/usr/lib/python3.5/http/client.py", line 1197, in getresponse
+    response.begin()
+  File "/usr/lib/python3.5/http/client.py", line 297, in begin
+    version, status, reason = self._read_status()
+  File "/usr/lib/python3.5/http/client.py", line 266, in _read_status
+    raise RemoteDisconnected("Remote end closed connection without"
+http.client.RemoteDisconnected: Remote end closed connection without response
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/requests/adapters.py", line 376, in send
+    timeout=timeout
+  File "/usr/lib/python3/dist-packages/urllib3/connectionpool.py", line 610, in urlopen
+    _stacktrace=sys.exc_info()[2])
+  File "/usr/lib/python3/dist-packages/urllib3/util/retry.py", line 247, in increment
+    raise six.reraise(type(error), error, _stacktrace)
+  File "/usr/lib/python3/dist-packages/six.py", line 685, in reraise
+    raise value.with_traceback(tb)
+  File "/usr/lib/python3/dist-packages/urllib3/connectionpool.py", line 560, in urlopen
+    body=body, headers=headers)
+  File "/usr/lib/python3/dist-packages/urllib3/connectionpool.py", line 379, in _make_request
+    httplib_response = conn.getresponse()
+  File "/usr/lib/python3.5/http/client.py", line 1197, in getresponse
+    response.begin()
+  File "/usr/lib/python3.5/http/client.py", line 297, in begin
+    version, status, reason = self._read_status()
+  File "/usr/lib/python3.5/http/client.py", line 266, in _read_status
+    raise RemoteDisconnected("Remote end closed connection without"
+requests.packages.urllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response',))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/devon/PycharmProjects/auto-SNVPhyl/main.py", line 51, in run
+    return self.main()  # Return the path to the results zip
+  File "/home/devon/PycharmProjects/auto-SNVPhyl/main.py", line 89, in main
+    self.upload_file(file)
+  File "/home/devon/PycharmProjects/auto-SNVPhyl/main.py", line 279, in upload_file
+    self.gi.tools.upload_file(os.path.join(self.script_dir, "upload", path), self.history_id)
+  File "/usr/local/lib/python3.5/dist-packages/bioblend/galaxy/tools/__init__.py", line 149, in upload_file
+    return self._tool_post(payload, files_attached=True)
+  File "/usr/local/lib/python3.5/dist-packages/bioblend/galaxy/tools/__init__.py", line 219, in _tool_post
+    return Client._post(self, payload, files_attached=files_attached)
+  File "/usr/local/lib/python3.5/dist-packages/bioblend/galaxy/client.py", line 157, in _post
+    files_attached=files_attached)
+  File "/usr/local/lib/python3.5/dist-packages/bioblend/galaxyclient.py", line 125, in make_post_request
+    verify=self.verify, params=post_params)
+  File "/usr/lib/python3/dist-packages/requests/api.py", line 107, in post
+    return request('post', url, data=data, json=json, **kwargs)
+  File "/usr/lib/python3/dist-packages/requests/api.py", line 53, in request
+    return session.request(method=method, url=url, **kwargs)
+  File "/usr/lib/python3/dist-packages/requests/sessions.py", line 468, in request
+    resp = self.send(prep, **send_kwargs)
+  File "/usr/lib/python3/dist-packages/requests/sessions.py", line 576, in send
+    r = adapter.send(request, **kwargs)
+  File "/usr/lib/python3/dist-packages/requests/adapters.py", line 426, in send
+    raise ConnectionError(err, request=request)
+requests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response',))
+
+2017-05-26 14:51:24,641 - INFO - [Elapsed time: 67.00] [Warning] AutoSNVPhyl had a problem, continuing redmine api anyways.
+2017-05-26 14:51:24,642 - INFO - [Elapsed time: 67.00] [AutoSNVPhyl Error Dump]
+Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/urllib3/connectionpool.py", line 377, in _make_request
+    httplib_response = conn.getresponse(buffering=True)
+TypeError: getresponse() got an unexpected keyword argument 'buffering'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/urllib3/connectionpool.py", line 560, in urlopen
+    body=body, headers=headers)
+  File "/usr/lib/python3/dist-packages/urllib3/connectionpool.py", line 379, in _make_request
+    httplib_response = conn.getresponse()
+  File "/usr/lib/python3.5/http/client.py", line 1197, in getresponse
+    response.begin()
+  File "/usr/lib/python3.5/http/client.py", line 297, in begin
+    version, status, reason = self._read_status()
+  File "/usr/lib/python3.5/http/client.py", line 266, in _read_status
+    raise RemoteDisconnected("Remote end closed connection without"
+http.client.RemoteDisconnected: Remote end closed connection without response
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/requests/adapters.py", line 376, in send
+    timeout=timeout
+  File "/usr/lib/python3/dist-packages/urllib3/connectionpool.py", line 610, in urlopen
+    _stacktrace=sys.exc_info()[2])
+  File "/usr/lib/python3/dist-packages/urllib3/util/retry.py", line 247, in increment
+    raise six.reraise(type(error), error, _stacktrace)
+  File "/usr/lib/python3/dist-packages/six.py", line 685, in reraise
+    raise value.with_traceback(tb)
+  File "/usr/lib/python3/dist-packages/urllib3/connectionpool.py", line 560, in urlopen
+    body=body, headers=headers)
+  File "/usr/lib/python3/dist-packages/urllib3/connectionpool.py", line 379, in _make_request
+    httplib_response = conn.getresponse()
+  File "/usr/lib/python3.5/http/client.py", line 1197, in getresponse
+    response.begin()
+  File "/usr/lib/python3.5/http/client.py", line 297, in begin
+    version, status, reason = self._read_status()
+  File "/usr/lib/python3.5/http/client.py", line 266, in _read_status
+    raise RemoteDisconnected("Remote end closed connection without"
+requests.packages.urllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response',))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "server_runner.py", line 111, in run_snvphyl
+    result_path = runner.run()
+  File "/home/devon/PycharmProjects/auto-SNVPhyl/main.py", line 51, in run
+    return self.main()  # Return the path to the results zip
+  File "/home/devon/PycharmProjects/auto-SNVPhyl/main.py", line 89, in main
+    self.upload_file(file)
+  File "/home/devon/PycharmProjects/auto-SNVPhyl/main.py", line 279, in upload_file
+    self.gi.tools.upload_file(os.path.join(self.script_dir, "upload", path), self.history_id)
+  File "/usr/local/lib/python3.5/dist-packages/bioblend/galaxy/tools/__init__.py", line 149, in upload_file
+    return self._tool_post(payload, files_attached=True)
+  File "/usr/local/lib/python3.5/dist-packages/bioblend/galaxy/tools/__init__.py", line 219, in _tool_post
+    return Client._post(self, payload, files_attached=files_attached)
+  File "/usr/local/lib/python3.5/dist-packages/bioblend/galaxy/client.py", line 157, in _post
+    files_attached=files_attached)
+  File "/usr/local/lib/python3.5/dist-packages/bioblend/galaxyclient.py", line 125, in make_post_request
+    verify=self.verify, params=post_params)
+  File "/usr/lib/python3/dist-packages/requests/api.py", line 107, in post
+    return request('post', url, data=data, json=json, **kwargs)
+  File "/usr/lib/python3/dist-packages/requests/api.py", line 53, in request
+    return session.request(method=method, url=url, **kwargs)
+  File "/usr/lib/python3/dist-packages/requests/sessions.py", line 468, in request
+    resp = self.send(prep, **send_kwargs)
+  File "/usr/lib/python3/dist-packages/requests/sessions.py", line 576, in send
+    r = adapter.send(request, **kwargs)
+  File "/usr/lib/python3/dist-packages/requests/adapters.py", line 426, in send
+    raise ConnectionError(err, request=request)
+requests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response',))
+
+2017-05-26 14:51:25,126 - INFO - [Elapsed time: 67.48] Waiting for next check.
