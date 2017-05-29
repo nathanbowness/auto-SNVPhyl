@@ -52,13 +52,13 @@ class Run(object):
         import re
         for line in input_file:
             # Check for mode changes
-            if line.lower() == 'reference':
+            if line.lower().startswith('reference') and len(line) < len('reference') + 3:
                 mode = 'ref'
                 continue
-            elif line.lower() == 'compare':
+            elif line.lower().startswith('compare') and len(line) < len('compare') + 3:
                 mode = 'comp'
                 continue
-            elif line.lower() == '':
+            elif line == '':
                 # Blank line
                 mode = 'none'
                 continue
