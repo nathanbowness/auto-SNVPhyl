@@ -152,7 +152,7 @@ class Run(object):
             self.clear_space()
             self.make_call()
             self.t.time_print("Waiting for next check.")
-            time.sleep(600)
+            time.sleep(600)  # 10 minutes
 
     def clear_space(self):
         from bioblend.galaxy import GalaxyInstance
@@ -176,7 +176,7 @@ class Run(object):
                 else:
                     raise
 
-        if len(available) > 4:
+        if len(available) >= self.max_histories:
             msg = 'Clearing data.'
         else:
             msg = 'Not clearing data.'
@@ -308,11 +308,11 @@ class Run(object):
         self.first_run = self.loader.get('first_run', default='yes', ask=False)
 
         self.nas_mnt = os.path.normpath(self.loader.get('nasmnt', default="/mnt/nas/"))
+        self.max_histories = self.loader.get('max_histories', default=6)
 
         # Make sure all the arguments are there
         self.loader.get('workflow_id', default="f2db41e1fa331b3e")
         self.loader.get('ip', default="http://192.168.1.3:48888/")
-
         self.key = 'Sixteen byte key'
 
         self.redmine = None
