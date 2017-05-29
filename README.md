@@ -28,22 +28,12 @@ Next run the script using -r REFERENCE-SEQ-ID
 ```console
 python3 -r REFERENCE-SEQ-ID
 ```
-Parameters:
-usage: main.py [-h] [-r REFERENCE] [-e] [-n HISTORY_NAME] [-m]
+Usage:
+main.py [-h] [-r REFERENCE] [-e] [-n HISTORY_NAME] [-m]
 
 optional arguments:
-  -h, --help            show this help message and exit
-  -r REFERENCE, --reference REFERENCE
-                        Input the seqid of the reference file. Also tells the
-                        program to extract the fastqs in your retrieve.txt. If
-                        this parameter is not given then it will use the files
-                        in your upload folder, it will autodetect the
-                        reference file as long as it's a fasta.
-  -e, --noextract       Use if you don't want any fastq files to be extracted
-                        from the nas.
-  -n HISTORY_NAME, --history_name HISTORY_NAME
-                        Name of the history to create
-  -m, --manual          Use the files in your upload directory (can use this
-                        in addition to the files extracted). If this flag is
-                        not used then it will clear the files in your upload
-                        directory.
+- -h show help message and exit
+- -r REFERENCE Input the seqid of the reference file. Also tells the program to extract the fastqs in your retrieve.txt. If              this parameter is not given then it will use the files in your upload folder, it will autodetect the reference file as long as it's a fasta.
+- --noextract Use if you don't want any fastq files to be extracted from the nas, so only use files in your upload folder.
+- -n HISTORY_NAME Name of the history to create
+- -m Use the files in your upload directory (can use this in addition to the files extracted). If this flag is not used then it will clear the files in your upload directory.
