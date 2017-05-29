@@ -8,3 +8,4 @@ runner_logs
 results/*
 results
 testing.py
+galaxy_logs
