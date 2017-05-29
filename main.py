@@ -8,10 +8,10 @@
 #   ip: The ip of galaxy (with port)
 #   name: The prefix of the history name
 #   nasmnt: The directory of the NAS mount
-#   redmine:
-# TODO check for http error every time you interact with galaxy
+
 # TODO Combined sequences folder to index
 # TODO SNVPhyl Renamer
+
 import os
 import sys
 import re
@@ -36,7 +36,7 @@ class AutoSNVPhylError(ValueError):
 class AutoSNVPhyl(object):
     def run(self):
         try:
-            self.load()
+            self.load()  # Load from config
             self.gi = GalaxyInstance(self.IP, key=self.API_KEY)
 
             if not self.manual and self.reference is None:
@@ -53,13 +53,11 @@ class AutoSNVPhyl(object):
         except:
             import traceback
 
+            # Print error to file
             self.t.time_print("[Error Dump]\n" + traceback.format_exc())
             raise
 
     def main(self):
-        # self.NAME = "EcoliO157:H7_2124"
-        # self.zip_results("/home/devon/PycharmProjects/auto-SNVPhyl/results/EcoliO157:H7_2124")
-        # exit(0)
         # Create history in Galaxy
         self.t.time_print("Creating history " + self.NAME)
         while True:
@@ -105,7 +103,6 @@ class AutoSNVPhyl(object):
                     self.uploaded.append(file.split('.gz')[0])  # In galaxy the .gz is removed
                 else:
                     self.uploaded.append(file)  # Fasta file
-                self.logsequences.append(file)
                 n += 1
 
         self.t.time_print("Waiting for files to finish uploading...")
@@ -130,8 +127,6 @@ class AutoSNVPhyl(object):
         for dataset in datasets:
             on_galaxy.append(dataset['name'])
 
-        print(on_galaxy)
-        print(self.uploaded)
         # Check for duplicate files
         count = {}
         for file in on_galaxy:
@@ -145,10 +140,42 @@ class AutoSNVPhyl(object):
         # Print all the files that weren't successfully uploaded.
         for file in self.uploaded:
             if file not in on_galaxy:
-                self.t.time_print("[Error] File %s wasn't uploaded to galaxy! (maybe it wasn't decompressed properly"
-                                  " by Galaxy)" % file)
-                raise AutoSNVPhylError("File %s wasn't uploaded to galaxy! (maybe it wasn't decompressed properly"
-                                       " by Galaxy)" % file)
+                # It wasn't decompressed
+                if file + ".gz" in on_galaxy:
+                    if 'R1' in file:
+                        n = 'R1'
+                    else:
+                        n = 'R2'
+
+                    # Re-upload the file
+                    self.t.time_print("[Warning] File %s wasn't automatically decompressed by galaxy,"
+                                      " re-uploading..." % file + '.gz')
+                    self.upload_file(self.extractor.retrieve_file(file.split('_')[0], filetype="fastq_" + n,
+                                                                  getpathonly=True))
+                    if not self.upload_check(file):
+                        errmsg = "[Error] File %s wasn't automatically decompressed by galaxy again, something is " \
+                                 "wrong with the file?" % file + '.gz'
+                        self.t.time_print(errmsg)
+                        raise AutoSNVPhylError(errmsg)
+                else:
+                    n = ""
+                    if 'R1' in file:
+                        n = 'R1'
+                    elif 'R2'in file:
+                        n = 'R2'
+
+                    self.t.time_print("[Warning] File %s wasn't uploaded to galaxy! Attempting to re-upload" % file)
+                    if n == "":
+                        if file.endswith('.fasta'):
+                            self.upload_file(self.extractor.retrieve_file(file.split('.')[0], filetype="fasta",
+                                                                          getpathonly=True))
+                    else:
+                        self.upload_file(self.extractor.retrieve_file(file.split('_')[0], filetype="fastq_" + n,
+                                                                      getpathonly=True))
+                    if not self.upload_check(file):
+                        errmsg = "[Error] File %s couldn't be uploaded to galaxy!" % file
+                        self.t.time_print(errmsg)
+                        raise AutoSNVPhylError(errmsg)
 
         self.t.time_print("Finished uploading.")
         self.t.time_print("Building list of dataset pairs...")
@@ -236,12 +263,35 @@ class AutoSNVPhyl(object):
         self.zip_results(folder)
 
         self.t.time_print("Completed")
-        # TODO fix list
-        self.t.time_print("   --- List of all files used in the SNVPhyl ---   ")
-        for file in self.logsequences:
-            self.t.time_print(file)
 
         return os.path.join(self.script_dir, folder, self.NAME + '.zip')
+
+    def upload_check(self, filename):
+        self.t.time_print("Waiting for upload to finish...")
+        while True:
+            try:
+                while self.gi.histories.show_history(self.history_id)["state"] != "ok":
+                    time.sleep(10)
+                break
+            except (ConnectionError, requests.exceptions.ConnectionError):
+                self.wait_for_problem()
+
+        # Check if the file is on galaxy
+        on_galaxy = []
+        while True:
+            try:
+                datasets = self.gi.histories.show_history(self.history_id, contents=True)
+                break
+            except (ConnectionError, requests.exceptions.ConnectionError):
+                self.wait_for_problem()
+
+        for dataset in datasets:
+            on_galaxy.append(dataset['name'])
+
+        if filename in on_galaxy:
+            return True
+        else:
+            return False
 
     def zip_results(self, r_folder):
         f_list = [
@@ -279,7 +329,6 @@ class AutoSNVPhyl(object):
         attempts = 0
         while True:
             try:
-                # TODO its uploading the file but not decompressing it???
                 self.t.time_print("Uploading...")
                 self.gi.tools.upload_file(os.path.join(self.script_dir, "upload", path), self.history_id)
                 return
@@ -309,15 +358,15 @@ class AutoSNVPhyl(object):
 
     def extract_files(self):
         from sequence_getter import SequenceGetter
+        from sequence_getter import ExtractionError
 
-        extractor = SequenceGetter(nasmnt=self.NASMNT, output=False)
+        self.extractor = SequenceGetter(nasmnt=self.NASMNT, output=False)
         if self.inputs is None:
             path_to_list = os.path.join(self.script_dir, "retrieve.txt")
             try:
                 f = open(path_to_list, "r")
                 # Get all of the ids in the file
                 ids = re.findall(r"(2\d{3}-\w{2,10}-\d{3,4})", f.read())
-                self.logsequences = ids
                 f.close()
             except FileNotFoundError:
                 # create blank file
@@ -335,17 +384,25 @@ class AutoSNVPhyl(object):
 
         # Get paths of fastq's
         path_list = []
+        err = ""
         for seqid in ids:
             for i in [1, 2]:
-                path_list.append(extractor.retrieve_file(seqid.rstrip("\n"), filetype="fastq_R" + str(i),
-                                                         getpathonly=True))
+                try:
+                    path_list.append(self.extractor.retrieve_file(seqid.rstrip("\n"), filetype="fastq_R" + str(i),
+                                                             getpathonly=True))
+                except ExtractionError as e:
+                    err += e.message + '\n'
 
         if self.reference is not None:
             # Get fasta
-            refpath = extractor.retrieve_file(self.reference, "fasta", getpathonly=True)
+            try:
+                refpath = self.extractor.retrieve_file(self.reference, "fasta", getpathonly=True)
+            except ExtractionError as e:
+                err += e.message + '\n'
+            if len(err) > 0:
+                raise AutoSNVPhylError(err)
             path_list.append(refpath)
             self.uploaded.append(os.path.split(refpath)[-1])
-            self.logsequences.append(self.reference)
         else:
             # Since there is no reference specified, check for one in the upload directory
             self.t.time_print("No reference file specified, using the one in the upload directory")
@@ -471,6 +528,7 @@ class AutoSNVPhyl(object):
         while True:
             try:
                 self.gi.histories.create_dataset_collection(self.history_id, collection_description)
+                break
             except (ConnectionError, requests.exceptions.ConnectionError):
                 self.wait_for_problem()
 
@@ -525,7 +583,6 @@ class AutoSNVPhyl(object):
     def __init__(self, args_in, inputs=None):
         self.max_attempts = 10
         self.uploaded = []  # A list of all uploaded files
-        self.logsequences = []
 
         # constants sort of
         self.IP = None
@@ -552,6 +609,7 @@ class AutoSNVPhyl(object):
                                              + "_%s.txt" % self.NAME))
         self.t.set_colour(32)
 
+        self.extractor = None
         self.history_id = None
 
 
@@ -579,5 +637,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
     runner = AutoSNVPhyl(args)
     runner.run()
-
-
