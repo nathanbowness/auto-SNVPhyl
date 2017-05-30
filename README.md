@@ -1,8 +1,8 @@
 # auto-SNVPhyl
 ## Installation
 ```console
-pip install bioblend
 git clone https://github.com/devonpmack/auto-SNVPhyl.git
+python3 setup.py install
 ```
 ## Generating API Keys
 ### Redmine
@@ -11,10 +11,12 @@ You can find your API key on your account page ( /my/account ) when logged in, o
 First login, then go to User>API Keys>Generate a New Key Now
 
 ## Setup and configuration
+Run the program and it will ask you for all the configuration it needs.
 ```console
 python3 server_runner.py
 ```
-Run the program and it will ask you for all the configuration it needs.
+Enter your Redmine API Key (generated above).
+It will now ask you for all the configuration options/requirements:
 - api_key: your API key for Galaxy (generated above)
 - ip: IP to Galaxy (copy paste the url from your browser, currently http://192.168.1.3:48888/
 - nasmnt: path to the NAS
@@ -37,3 +39,6 @@ optional arguments:
 - --noextract Use if you don't want any fastq files to be extracted from the nas, so only use files in your upload folder.
 - -n HISTORY_NAME Name of the history to create
 - -m Use the files in your upload directory (can use this in addition to the files extracted). If this flag is not used then it will clear the files in your upload directory.
+
+## Running just a SNVPhyl without redmine
+First enter all the SEQ-IDS you want to compare the reference to into "retrieve.txt". Now run the SNVPhyl with `python3 main.py -r REFERENCE_SEQ_ID`. There are a lot of options which you can see with `python3 main.py -h`. For example if you want to input your own files into the SNVPhyl use `python3 main.py --manual --noextract`.
