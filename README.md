@@ -39,6 +39,3 @@ optional arguments:
 - --noextract Use if you don't want any fastq files to be extracted from the nas, so only use files in your upload folder.
 - -n HISTORY_NAME Name of the history to create
 - -m Use the files in your upload directory (can use this in addition to the files extracted). If this flag is not used then it will clear the files in your upload directory.
-
-## Running just a SNVPhyl without redmine
-First enter all the SEQ-IDS you want to compare the reference to into "retrieve.txt". Now run the SNVPhyl with `python3 main.py -r REFERENCE_SEQ_ID`. There are a lot of options which you can see with `python3 main.py -h`. For example if you want to input your own files into the SNVPhyl use `python3 main.py --manual --noextract`.
