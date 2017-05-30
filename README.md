@@ -2,7 +2,7 @@
 ## Installation
 ```console
 git clone https://github.com/devonpmack/auto-SNVPhyl.git
-python3 setup.py install
+pip install requirements.txt
 ```
 ## Generating API Keys
 ### Redmine
