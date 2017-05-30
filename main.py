@@ -620,7 +620,7 @@ if __name__ == "__main__":
                         help="Input the seqid of the reference file. "
                              "Also tells the program to extract the fastqs in your retrieve.txt. "
                              "If this parameter is not given then it will use the files in your "
-                             "upload folder, it will autodetect the reference file as long as it's"
+                             "upload folder, it will autodetect the reference file as long as it's "
                              "a fasta. ", type=str)
     parser.add_argument("-e", "--noextract", action="store_true",
                         help="Use if you don't want any fastq files to be extracted from the nas.")
@@ -628,7 +628,7 @@ if __name__ == "__main__":
                         help="Name of the history to create")
     parser.add_argument("-m", "--manual", action="store_true",
                         help="Use the files in your upload directory (can use this in addition to the files extracted)."
-                             "If this flag is not used then it will clear the files in your upload directory.")
+                             " If this flag is not used then it will clear the files in your upload directory.")
     # If no arguments
     if len(sys.argv) == 1:
         parser.print_help()
