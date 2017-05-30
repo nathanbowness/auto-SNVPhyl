@@ -15,7 +15,6 @@ Run the program and it will ask you for all the configuration it needs.
 ```console
 python3 server_runner.py
 ```
-Enter your Redmine API Key (generated above).
 It will now ask you for all the configuration options/requirements:
 - api_key: your API key for Galaxy (generated above)
 - ip: The URL of Galaxy (copy paste the url from your browser, currently http://192.168.1.3:48888/)
@@ -23,6 +22,8 @@ It will now ask you for all the configuration options/requirements:
 - workflow ID: The workflow ID of SNVPhyl, leave this as default.
 - max_histories: The max amount of histories allowed on galaxy before the program will clear space.
 - seconds_between_redmine_checks: How many seconds to wait between checks on redmine looking for new SNVPhyls to run
+
+Finally enter your Redmine API Key (generated above).
 
 ## Running a SNVPhyl without Redmine, just using terminal
 First enter all the SEQ-IDS you want to compare the reference to into "retrieve.txt".

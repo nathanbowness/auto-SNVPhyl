@@ -26,6 +26,11 @@ class Run(object):
             # Import and decode from file
             self.redmine_api_key = self.decode(self.key, self.redmine_api_key)
 
+        import re
+        if not re.match(r'^[a-z0-9]{40}$', self.redmine_api_key):
+            self.t.time_print("Invalid Redmine API key!")
+            exit(1)
+
         self.redmine = RedmineInterface('http://redmine.biodiversity.agr.gc.ca/', self.redmine_api_key)
 
         self.main_loop()
@@ -167,7 +172,9 @@ class Run(object):
             except ConnectionError as e:
                 if e.status_code == 403:  # Invalid API key
                     self.t.time_print("Invalid Galaxy API Key!")
-                    exit(1)
+                    del self.loader.__dict__['api_key']
+                    self.loader.dump()
+                    self.loader.get('api_key')
                 elif 'Max retries exceeded' in str(e.args[0]):
                     self.t.time_print("Error: Galaxy isn't running/connection error.")
                     self.t.time_print("Waiting 1 hour...")
@@ -307,9 +314,9 @@ class Run(object):
         # If it's the first run then this will be yes
         self.first_run = self.loader.get('first_run', default='yes', ask=False)
 
-        self.nas_mnt = os.path.normpath(self.loader.get('nasmnt', default="/mnt/nas/"))
-        self.max_histories = self.loader.get('max_histories', default=6)
-        self.seconds_between_redmine_checks = self.loader.get('seconds_between_redmine_checks', default=600)
+        self.nas_mnt = os.path.normpath(self.loader.get('nasmnt', default="/mnt/nas/", get_type=str))
+        self.max_histories = self.loader.get('max_histories', default=6, get_type=int)
+        self.seconds_between_redmine_checks = (self.loader.get('seconds_between_redmine_checks', default=600, get_type=int))
 
         # Make sure all the arguments are there
         self.loader.get('workflow_id', default="f2db41e1fa331b3e")
