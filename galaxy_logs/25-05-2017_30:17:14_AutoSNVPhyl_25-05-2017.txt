@@ -1,9 +1,0 @@
-2017-05-25 14:17:30,173 - INFO - [Elapsed time: 0.00] Invalid Galaxy API key.
-2017-05-25 14:17:30,174 - INFO - [Elapsed time: 0.00] [Error Dump]
-Traceback (most recent call last):
-  File "/home/devon/PycharmProjects/auto-SNVPhyl/main.py", line 37, in run
-    self.load()
-  File "/home/devon/PycharmProjects/auto-SNVPhyl/main.py", line 408, in load
-    sys.exit(1)
-SystemExit: 1
-
