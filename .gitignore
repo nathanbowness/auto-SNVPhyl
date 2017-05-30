@@ -5,3 +5,4 @@ runner_logs
 results
 galaxy_logs
 __pycache__
+*.pyc
