@@ -209,6 +209,7 @@ class Run(object):
 
         while len(found) > 0:  # While there are still issues to respond to
             self.respond_to_issue(found.pop(len(found)-1))
+            self.clear_space()
 
     def respond_to_issue(self, issue):
         # Run snvphyl
