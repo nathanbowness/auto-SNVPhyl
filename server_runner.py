@@ -9,12 +9,17 @@ import requests
 
 
 class Run(object):
-    def main(self):
+    def main(self, force):
         if self.first_run == 'yes':
             choice = 'y'
+            if force:
+                raise ValueError('Need redmine API key!')
         else:
-            self.t.time_print("Would you like to set the redmine api key? (y/n)")
-            choice = input()
+            if force:
+                choice = 'n'
+            else:
+                self.t.time_print("Would you like to set the redmine api key? (y/n)")
+                choice = input()
         if choice == 'y':
             self.t.time_print("Enter your redmine api key (will be encrypted to file)")
             self.redmine_api_key = input()
@@ -276,7 +281,7 @@ class Run(object):
 
         return decoded_string
 
-    def __init__(self):
+    def __init__(self, force):
         # import logging
         # logging.basicConfig(level=logging.INFO)
         # Vars
@@ -316,11 +321,18 @@ class Run(object):
         self.redmine = None
 
         try:
-            self.main()
+            self.main(force)
         except Exception as e:
             import traceback
             self.t.time_print("[Error] Dumping...\n%s" % traceback.format_exc())
             raise
 
 if __name__ == "__main__":
-    Run()
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-f", "--force", action="store_true",
+                        help="Don't ask to update redmine api key")
+
+    args = parser.parse_args()
+    Run(args.force)
