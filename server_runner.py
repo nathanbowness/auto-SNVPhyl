@@ -36,18 +36,6 @@ class Run(object):
         self.main_loop()
 
     @staticmethod
-    def generate_args(inputs):
-        import argparse
-
-        args = argparse.Namespace()
-        args.reference = inputs['reference']
-        args.history_name = inputs['name']
-        args.noextract = False
-        args.manual = False  # Change this to true if you want to manually run the snvphyl
-
-        return args
-
-    @staticmethod
     def get_input(input_file, redmine_id):
         mode = 'none'
         regex = r"^(2\d{3}-\w{2,10}-\d{3,4})$"
@@ -224,42 +212,43 @@ class Run(object):
 
     def respond_to_issue(self, issue):
         # Run snvphyl
-        self.t.time_print("Found SNVPhyl to run. Subject: %s. ID: %s" % (issue['subject'], issue['id']))
-        self.t.time_print("Adding to responded to")
-        self.responded_issues.add(issue['id'])
-        self.issue_loader.responded_issues = list(self.responded_issues)
-        self.issue_loader.dump()
+        if self.redmine.get_issue_data(issue['id'])['issue']['status']['name'] == 'New':
+            self.t.time_print("Found SNVPhyl to run. Subject: %s. ID: %s" % (issue['subject'], issue['id']))
+            self.t.time_print("Adding to responded to")
+            self.responded_issues.add(issue['id'])
+            self.issue_loader.responded_issues = list(self.responded_issues)
+            self.issue_loader.dump()
 
-        # Turn the description into a list of lines
-        input_list = issue['description'].split('\n')
-        input_list = map(str.strip, input_list)  # Get rid of \r
-        error = False
-        try:
-            inputs = self.get_input(input_list, issue['id'])
-            response = "Running SNVPhyl with reference %s\n\nComparing to:" % inputs['reference']
-            for fastq in list(inputs['fastqs']):
-                response += '\n' + fastq
-            if inputs['reference'] not in inputs['fastqs']:
-                response += "Did you mean to not compare the reference to itself?"  # TODO ask for answer
-        except ValueError as e:
-            response = "Sorry, there was a problem with your SNVPhyl request:\n%s\n" \
-                       "Please submit a new request and close this one." % e.args[0]
-            error = True
+            # Turn the description into a list of lines
+            input_list = issue['description'].split('\n')
+            input_list = map(str.strip, input_list)  # Get rid of \r
+            error = False
+            try:
+                inputs = self.get_input(input_list, issue['id'])
+                response = "Running SNVPhyl with reference %s\n\nComparing to:" % inputs['reference']
+                for fastq in list(inputs['fastqs']):
+                    response += '\n' + fastq
+                if inputs['reference'] not in inputs['fastqs']:
+                    response += "Did you mean to not compare the reference to itself?"  # TODO ask for answer
+            except ValueError as e:
+                response = "Sorry, there was a problem with your SNVPhyl request:\n%s\n" \
+                           "Please submit a new request and close this one." % e.args[0]
+                error = True
 
-        self.t.time_print('\n' + response)
+            self.t.time_print('\n' + response)
 
-        if error:  # If something went wrong set the status to feedback and assign the author the issue
-            get = self.redmine.get_issue_data(issue['id'])
-            self.redmine.update_issue(issue['id'], notes=response, status_change=4,
-                                      assign_to_id=get['issue']['author']['id'])
-        else:
-            # Set the issue to in progress since the SNVPhyl is running
-            self.redmine.update_issue(issue['id'], notes=response, status_change=2)
+            if error:  # If something went wrong set the status to feedback and assign the author the issue
+                get = self.redmine.get_issue_data(issue['id'])
+                self.redmine.update_issue(issue['id'], notes=response, status_change=4,
+                                          assign_to_id=get['issue']['author']['id'])
+            else:
+                # Set the issue to in progress since the SNVPhyl is running
+                self.redmine.update_issue(issue['id'], notes=response, status_change=2)
 
-        if error:
-            return
-        else:
-            self.run_snvphyl(inputs)
+            if error:
+                return
+            else:
+                self.run_snvphyl(inputs)
 
     @staticmethod
     def encode(key, string):
