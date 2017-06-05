@@ -24,7 +24,25 @@ It will now ask you for all the configuration options/requirements:
 - seconds_between_redmine_checks: How many seconds to wait between checks on redmine looking for new SNVPhyls to run
 
 Finally enter your Redmine API Key (generated above).
-
+### Running the Redmine Listener permanently
+First install the supervisor package
+```console
+sudo apt-get install supervisor
+```
+Create a config file for your daemon at /etc/supervisor/conf.d/auto_snvphyl.conf
+```
+[program:auto_snvphyl]
+directory=/path/to/project/root
+environment=ENV_VARIABLE=example,OTHER_ENV_VARIABLE=example2
+command=python3 server_runner.py -f
+autostart=true
+autorestart=true
+```
+Restart supervisor to load your new .conf
+```
+supervisorctl update
+supervisorctl restart auto_snvphyl
+```
 ## Running a SNVPhyl without Redmine, just using terminal
 First enter all the SEQ-IDS you want to compare the reference to into "retrieve.txt".
 Now run the SNVPhyl with
