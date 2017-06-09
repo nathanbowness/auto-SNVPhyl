@@ -4,6 +4,7 @@ from RedmineAPI.RedmineAPI import RedmineInterface
 from pyaccessories.SaveLoad import SaveLoad
 from main import AutoSNVPhyl
 import base64
+
 import requests
 # TODO documentation
 
@@ -39,6 +40,18 @@ class Run(object):
         self.redmine = RedmineInterface('http://redmine.biodiversity.agr.gc.ca/', self.redmine_api_key)
 
         self.main_loop()
+
+    @staticmethod
+    def generate_args(inputs):
+        import argparse
+
+        args = argparse.Namespace()
+        args.reference = inputs['reference']
+        args.history_name = inputs['name']
+        args.noextract = False
+        args.manual = False  # Change this to true if you want to manually run the snvphyl
+
+        return args
 
     @staticmethod
     def get_input(input_file, redmine_id):
@@ -107,7 +120,7 @@ class Run(object):
         # noinspection PyBroadException
         from main import AutoSNVPhylError
         try:
-            runner = AutoSNVPhyl(args, inputs=inputs['fastqs'])
+            runner = AutoSNVPhyl(args, inputs=inputs)
             result_path = runner.run()
             # SNVPhyl finished, copy the zip to the NAS
             import shutil
@@ -136,13 +149,13 @@ class Run(object):
 
             # Set it to feedback and assign it back to the author
             get = self.redmine.get_issue_data(inputs['name'])
-            self.redmine.update_issue(
-                                      inputs['name'],
-                                      notes="There was a problem with your SNVPhyl. Please create a new issue on"
-                                            " Redmine to re-run it.\n%s" % msg,
-                                      status_change=4,
-                                      assign_to_id=get['issue']['author']['id']
-                                      )
+            # self.redmine.update_issue(
+            #                           inputs['name'],
+            #                           notes="There was a problem with your SNVPhyl. Please create a new issue on"
+            #                                 " Redmine to re-run it.\n%s" % msg,
+            #                           status_change=4,
+            #                           assign_to_id=get['issue']['author']['id']
+            #                           )
 
     def main_loop(self):
         import time
@@ -223,7 +236,7 @@ class Run(object):
             self.t.time_print("Adding to responded to")
             self.responded_issues.add(issue['id'])
             self.issue_loader.responded_issues = list(self.responded_issues)
-            self.issue_loader.dump()
+            #self.issue_loader.dump() #TODO ADD
 
             # Turn the description into a list of lines
             input_list = issue['description'].split('\n')
@@ -236,25 +249,87 @@ class Run(object):
                     response += '\n' + fastq
                 if inputs['reference'] not in inputs['fastqs']:
                     response += "Did you mean to not compare the reference to itself?"  # TODO ask for answer
+
             except ValueError as e:
                 response = "Sorry, there was a problem with your SNVPhyl request:\n%s\n" \
                            "Please submit a new request and close this one." % e.args[0]
                 error = True
 
+            # Rename file'Invalid name to rename %s. Ignoring.'s if the rename.txt text file is include
+            more_msg, inputs['rename'] = self.rename_files(issue['id'])
+            if more_msg is not None:
+                response += '\n' + more_msg
+
             self.t.time_print('\n' + response)
 
-            if error:  # If something went wrong set the status to feedback and assign the author the issue
-                get = self.redmine.get_issue_data(issue['id'])
-                self.redmine.update_issue(issue['id'], notes=response, status_change=4,
-                                          assign_to_id=get['issue']['author']['id'])
-            else:
-                # Set the issue to in progress since the SNVPhyl is running
-                self.redmine.update_issue(issue['id'], notes=response, status_change=2)
+            # if error:  # If something went wrong set the status to feedback and assign the author the issue
+            #     get = self.redmine.get_issue_data(issue['id'])
+            #     self.redmine.update_issue(issue['id'], notes=response, status_change=4,
+            #                               assign_to_id=get['issue']['author']['id'])
+            # else:
+            #     # Set the issue to in progress since the SNVPhyl is running
+            #     self.redmine.update_issue(issue['id'], notes=response, status_change=2)
 
             if error:
                 return
             else:
                 self.run_snvphyl(inputs)
+
+    def rename_files(self, issue_id):
+        self.t.time_print('Looking for rename.txt')
+        data = self.redmine.get_issue_data(issue_id)
+        try:
+            attachments = data['issue']['attachments']
+            self.t.time_print('Found attachment to redmine request.')
+        except KeyError:
+            # No attachments
+            return None, []
+        rename = None
+        for attachment in attachments:
+            if attachment['filename'] == 'rename.txt':
+                # Good
+                self.t.time_print('Found rename.txt, downloading...')
+                rename = self.redmine.download_file(attachment['content_url'])
+                break
+
+        if rename is None:
+            return None, []
+
+        import re
+        regex = r'([^,\n]+)(?:,|\n)([^,\n]+)'  # Matches a list of comma separated pairs eg. seq,a,seq2,b
+        pairs = re.findall(regex, rename)
+
+        if len(pairs) == 0:
+            return 'Invalid rename.txt file.', []
+
+        # Check its a good file
+        ignore = []
+        for pair in pairs:
+            # Check duplicate
+            for compare in pairs:
+                if pair[0] == compare[0]:
+                    if pair[1] != compare[1]:
+                        return 'Not using rename.txt because of duplicate definition in the rename.txt file', []
+                    # Otherwise let it go
+
+            # Make sure its valid
+            regex = r'.+'  # TODO actual regex
+            if not re.fullmatch(regex, pair[1]):
+                ignore.append(pair)
+
+        # Feedback
+        msg = "Renaming files before starting SNVPhyl."
+        if len(ignore) > 0:
+            msg += 'Some names were invalid and were ignored:\n'
+            for out in ignore:
+                msg += '\n%s' % out[1]
+
+        # Convert to dict
+        result = {}
+        for pair in pairs:
+            result[pair[0]] = pair[1]
+
+        return msg, result
 
     @staticmethod
     def encode(key, string):

@@ -58,6 +58,12 @@ class AutoSNVPhyl(object):
             raise
 
     def main(self):
+        if self.inputs is not None:
+            if len(self.inputs['rename']) > 0:
+                self.rename = True
+
+        print(self.rename)
+        print(self.inputs['rename'])
         # Create history in Galaxy
         self.t.time_print("Creating history " + self.NAME)
         while True:
@@ -86,7 +92,6 @@ class AutoSNVPhyl(object):
             for file in to_upload:
                 self.t.time_print("%d of %d: Uploading %s" % (n, nfiles, file))
                 self.upload_file(file)
-                self.uploaded.append(os.path.split(file)[-1].split('.gz')[0])
                 n += 1
 
         # Upload files from the upload folder if the manual flag is used
@@ -99,10 +104,6 @@ class AutoSNVPhyl(object):
             for file in files:
                 self.t.time_print("%d of %d: Uploading %s from %s directory." % (n, nfiles, file, upload_folder))
                 self.upload_file(os.path.join(upload_folder, file))
-                if file.endswith('.fastq.gz'):
-                    self.uploaded.append(file.split('.gz')[0])  # In galaxy the .gz is removed
-                else:
-                    self.uploaded.append(file)  # Fasta file
                 n += 1
 
         self.t.time_print("Waiting for files to finish uploading...")
@@ -324,14 +325,43 @@ class AutoSNVPhyl(object):
         zipf.close()
 
     def upload_file(self, path):
+        # TODO I removed some stuff needs testing before being run permanently.
         from bioblend import ConnectionError as bioblendConnectionError
         import time
         attempts = 0
         while True:
             try:
-                self.t.time_print("Uploading...")
-                self.gi.tools.upload_file(os.path.join(self.script_dir, "upload", path), self.history_id)
-                return
+                if self.rename:
+                    if path.endswith('.fasta'):
+                        ending = '.fasta'
+                        seqid = os.path.split(path)[-1].split('.')[0]
+                    else:
+                        if 'r2' in os.path.split(path)[-1].lower():
+                            ending = '_R2.fastq'
+                        elif 'r1' in os.path.split(path)[-1].lower():
+                            ending = '_R1.fastq'
+                        else:
+                            ending = '.fastq'
+
+                        seqid = os.path.split(path)[-1].split('_')[0]
+                    nfilename = self.inputs['rename'][seqid] + ending
+                    self.t.time_print("Uploading as %s..." % nfilename)
+                else:
+                    self.t.time_print('Uploading...')
+                if self.inputs is not None:  # Automated
+                    if self.rename:
+                        try:
+
+                            self.uploaded.append(nfilename)
+                            self.gi.tools.upload_file(path, self.history_id,
+                                                      file_name=nfilename)
+                        except KeyError:
+                            self.gi.tools.upload_file(path, self.history_id)
+                    else:
+                        self.gi.tools.upload_file(path, self.history_id)
+                else:
+                    self.gi.tools.upload_file(path, self.history_id)
+                break
             except bioblendConnectionError:
                 if attempts < self.max_attempts:
                     attempts += 1
@@ -361,6 +391,7 @@ class AutoSNVPhyl(object):
         from sequence_getter import ExtractionError
 
         self.extractor = SequenceGetter(nasmnt=self.NASMNT, output=False)
+
         if self.inputs is None:
             path_to_list = os.path.join(self.script_dir, "retrieve.txt")
             try:
@@ -380,7 +411,7 @@ class AutoSNVPhyl(object):
                     self.t.time_print("Invalid seqid: \"%s\"" % line.rstrip("\n"))
 
         else:
-            ids = self.inputs
+            ids = self.inputs['fastqs']
 
         # Get paths of fastq's
         path_list = []
@@ -402,7 +433,6 @@ class AutoSNVPhyl(object):
             if len(err) > 0:
                 raise AutoSNVPhylError(err)
             path_list.append(refpath)
-            self.uploaded.append(os.path.split(refpath)[-1])
         else:
             # Since there is no reference specified, check for one in the upload directory
             self.t.time_print("No reference file specified, using the one in the upload directory")
@@ -609,6 +639,7 @@ class AutoSNVPhyl(object):
                                              + "_%s.txt" % self.NAME))
         self.t.set_colour(32)
 
+        self.rename = False
         self.extractor = None
         self.history_id = None
 
