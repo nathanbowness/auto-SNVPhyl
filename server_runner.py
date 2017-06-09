@@ -149,13 +149,13 @@ class Run(object):
 
             # Set it to feedback and assign it back to the author
             get = self.redmine.get_issue_data(inputs['name'])
-            # self.redmine.update_issue(
-            #                           inputs['name'],
-            #                           notes="There was a problem with your SNVPhyl. Please create a new issue on"
-            #                                 " Redmine to re-run it.\n%s" % msg,
-            #                           status_change=4,
-            #                           assign_to_id=get['issue']['author']['id']
-            #                           )
+            self.redmine.update_issue(
+                                      inputs['name'],
+                                      notes="There was a problem with your SNVPhyl. Please create a new issue on"
+                                            " Redmine to re-run it.\n%s" % msg,
+                                      status_change=4,
+                                      assign_to_id=get['issue']['author']['id']
+                                      )
 
     def main_loop(self):
         import time
@@ -236,7 +236,7 @@ class Run(object):
             self.t.time_print("Adding to responded to")
             self.responded_issues.add(issue['id'])
             self.issue_loader.responded_issues = list(self.responded_issues)
-            #self.issue_loader.dump() #TODO ADD
+            self.issue_loader.dump()
 
             # Turn the description into a list of lines
             input_list = issue['description'].split('\n')
@@ -262,13 +262,13 @@ class Run(object):
 
             self.t.time_print('\n' + response)
 
-            # if error:  # If something went wrong set the status to feedback and assign the author the issue
-            #     get = self.redmine.get_issue_data(issue['id'])
-            #     self.redmine.update_issue(issue['id'], notes=response, status_change=4,
-            #                               assign_to_id=get['issue']['author']['id'])
-            # else:
-            #     # Set the issue to in progress since the SNVPhyl is running
-            #     self.redmine.update_issue(issue['id'], notes=response, status_change=2)
+            if error:  # If something went wrong set the status to feedback and assign the author the issue
+                get = self.redmine.get_issue_data(issue['id'])
+                self.redmine.update_issue(issue['id'], notes=response, status_change=4,
+                                          assign_to_id=get['issue']['author']['id'])
+            else:
+                # Set the issue to in progress since the SNVPhyl is running
+                self.redmine.update_issue(issue['id'], notes=response, status_change=2)
 
             if error:
                 return
