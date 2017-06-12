@@ -33,11 +33,12 @@ Create a config file for your daemon at /etc/supervisor/conf.d/auto_snvphyl.conf
 ```
 [program:auto_snvphyl]
 directory=/path/to/project/root
-environment=ENV_VARIABLE=example,OTHER_ENV_VARIABLE=example2
 command=python3 server_runner.py -f
 autostart=true
 autorestart=true
 ```
+Replace /path/to/project/root with the path to the folder you cloned auto_snvphyl into.
+
 Restart supervisor to load your new .conf
 ```
 supervisorctl update
