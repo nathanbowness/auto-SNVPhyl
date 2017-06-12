@@ -296,7 +296,7 @@ class Run(object):
             return None, []
 
         import re
-        regex = r'([^,\n]+)(?:,|\n)([^,\n]+)'  # Matches a list of comma separated pairs eg. seq,a,seq2,b
+        regex = r'([^\t\n]+)(?:,|\n)([^\t\n]+)'  # Matches a list of comma separated pairs eg. seq,a,seq2,b
         pairs = re.findall(regex, rename)
 
         if len(pairs) == 0:
