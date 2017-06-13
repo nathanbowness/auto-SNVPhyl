@@ -38,7 +38,6 @@ class Run(object):
             exit(1)
 
         self.redmine = RedmineInterface('http://redmine.biodiversity.agr.gc.ca/', self.redmine_api_key)
-
         self.main_loop()
 
     @staticmethod
@@ -289,7 +288,7 @@ class Run(object):
         for attachment in attachments:
             if attachment['filename'].endswith('.txt'):
                 # Good
-                self.t.time_print('Found rename.txt, downloading...')
+                self.t.time_print('Found %s, downloading...' % attachment['filename'])
                 rename = self.redmine.download_file(attachment['content_url'])
                 break
 
