@@ -233,6 +233,7 @@ class Run(object):
         if self.redmine.get_issue_data(issue['id'])['issue']['status']['name'] == 'New':
             self.t.time_print("Found SNVPhyl to run. Subject: %s. ID: %s" % (issue['subject'], issue['id']))
             self.t.time_print("Adding to responded to")
+
             self.responded_issues.add(issue['id'])
             self.issue_loader.responded_issues = list(self.responded_issues)
             self.issue_loader.dump()
@@ -257,6 +258,8 @@ class Run(object):
             if not error:
                 # Rename file'Invalid name to rename %s. Ignoring.'s if the rename.txt text file is include
                 more_msg, inputs['rename'] = self.rename_files(issue['id'])
+                self.t.time_print(more_msg)
+
                 if more_msg is not None:
                     response += '\n' + more_msg
 
@@ -269,14 +272,16 @@ class Run(object):
             else:
                 # Set the issue to in progress since the SNVPhyl is running
                 self.redmine.update_issue(issue['id'], notes=response + self.botmsg, status_change=2)
+                pass
 
             if error:
                 return
             else:
                 self.run_snvphyl(inputs)
+                pass
 
     def rename_files(self, issue_id):
-        self.t.time_print('Looking for rename.txt')
+        self.t.time_print('Looking for txt')
         data = self.redmine.get_issue_data(issue_id)
         try:
             attachments = data['issue']['attachments']
