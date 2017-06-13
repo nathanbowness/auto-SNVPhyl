@@ -38,6 +38,7 @@ class Run(object):
             exit(1)
 
         self.redmine = RedmineInterface('http://redmine.biodiversity.agr.gc.ca/', self.redmine_api_key)
+        # self.respond_to_issue(self.redmine.get_issue_data(8958)['issue'])
         self.main_loop()
 
     @staticmethod
@@ -301,7 +302,7 @@ class Run(object):
             return None, []
 
         import re
-        regex = r'([^\t\n]+)(?:,|\n)([^\t\n]+)'  # Matches a list of comma separated pairs eg. seq,a,seq2,b
+        regex = r'([^\t\n\r]+)(?:,|\n|\r|\t)([^\t\n\r]+)'  # Matches a list of comma separated pairs eg. seq,a,seq2,b
         pairs = re.findall(regex, rename)
 
         if len(pairs) == 0:
@@ -333,7 +334,7 @@ class Run(object):
         result = {}
         for pair in pairs:
             result[pair[0]] = pair[1]
-
+        self.t.time_print(result)
         return msg, result
 
     @staticmethod
