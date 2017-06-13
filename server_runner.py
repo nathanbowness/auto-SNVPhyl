@@ -56,7 +56,7 @@ class Run(object):
     @staticmethod
     def get_input(input_file, redmine_id):
         mode = 'none'
-        regex = r"^(2\d{3}-\w{2,10}-\d{3,4})$"
+        regex = r"^(2\d{3}-\w{2,10}-\d{3,4}|\d{2}-\d{4})$"  # Match xxxx-xxx-xxxx or xx-xxxx
         inputs = {
             'reference': None,
             'fastqs': list(),
@@ -255,10 +255,11 @@ class Run(object):
                            "Please submit a new request and close this one." % e.args[0]
                 error = True
 
-            # Rename file'Invalid name to rename %s. Ignoring.'s if the rename.txt text file is include
-            more_msg, inputs['rename'] = self.rename_files(issue['id'])
-            if more_msg is not None:
-                response += '\n' + more_msg
+            if not error:
+                # Rename file'Invalid name to rename %s. Ignoring.'s if the rename.txt text file is include
+                more_msg, inputs['rename'] = self.rename_files(issue['id'])
+                if more_msg is not None:
+                    response += '\n' + more_msg
 
             self.t.time_print('\n' + response)
 
