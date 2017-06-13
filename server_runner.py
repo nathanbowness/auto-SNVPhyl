@@ -287,7 +287,7 @@ class Run(object):
             return None, []
         rename = None
         for attachment in attachments:
-            if attachment['filename'] == 'rename.txt':
+            if attachment['filename'].endswith('.txt'):
                 # Good
                 self.t.time_print('Found rename.txt, downloading...')
                 rename = self.redmine.download_file(attachment['content_url'])
