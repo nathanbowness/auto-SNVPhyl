@@ -1,7 +1,7 @@
 # auto-SNVPhyl
 ## Installation
 ```console
-git clone https://github.com/devonpmack/auto-SNVPhyl.git
+git clone https://github.com/devonpmack/auto-SNVPhyl.git --recursive
 pip install requirements.txt
 ```
 ## Generating API Keys
