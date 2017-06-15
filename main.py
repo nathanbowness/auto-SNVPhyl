@@ -134,6 +134,7 @@ class AutoSNVPhyl(object):
             try:
                 self.t.time_print(count[file])  # If this succeeds then the file is already on galaxy so duplicate
                 self.t.time_print("[Error] Duplicate file %s on galaxy!" % file)
+                raise AutoSNVPhylError("Duplicate file on galaxy!")
             except KeyError:
                 # If it isn't already in the dictionary add it to the dictionary
                 count[file] = True

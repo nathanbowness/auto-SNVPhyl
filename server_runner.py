@@ -93,6 +93,15 @@ class Run(object):
                     pass
                     raise ValueError("Invalid seq-id \"%s\"" % line)
 
+        # Check for duplicates
+        l = inputs['fastqs']
+        duplicates = set([x for x in l if l.count(x) > 1])
+        if len(duplicates) > 1:
+            msg = "Duplicate SEQ-IDs!\n"
+            for duplicate in duplicates:
+                msg += duplicate + '\n'
+            raise ValueError(msg)
+
         if inputs['reference'] is None or len(inputs['fastqs']) < 1:
             raise ValueError("Invalid format for redmine request.")
 
