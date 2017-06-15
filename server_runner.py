@@ -268,7 +268,6 @@ class Run(object):
             if not error:
                 # Rename file'Invalid name to rename %s. Ignoring.'s if the rename.txt text file is include
                 more_msg, inputs['rename'] = self.rename_files(issue['id'])
-                self.t.time_print(more_msg)
 
                 if more_msg is not None:
                     response += '\n' + more_msg
@@ -295,7 +294,10 @@ class Run(object):
         data = self.redmine.get_issue_data(issue_id)
         try:
             attachments = data['issue']['attachments']
-            self.t.time_print('Found attachment to redmine request.')
+            if len(attachments) > 0:
+                self.t.time_print('Found attachment to redmine request.')
+            else:
+                return None, []
         except KeyError:
             # No attachments
             return None, []
