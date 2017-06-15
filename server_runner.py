@@ -38,7 +38,8 @@ class Run(object):
             exit(1)
 
         self.redmine = RedmineInterface('http://redmine.biodiversity.agr.gc.ca/', self.redmine_api_key)
-        # self.respond_to_issue(self.redmine.get_issue_data(8958)['issue'])
+        # self.respond_to_issue(self.redmine.get_issue_data(8983)['issue'], force=True)  # use this to re-run issues
+        # exit()
         self.main_loop()
 
     @staticmethod
@@ -96,7 +97,7 @@ class Run(object):
         # Check for duplicates
         l = inputs['fastqs']
         duplicates = set([x for x in l if l.count(x) > 1])
-        if len(duplicates) > 1:
+        if len(duplicates) > 0:
             msg = "Duplicate SEQ-IDs!\n"
             for duplicate in duplicates:
                 msg += duplicate + '\n'
@@ -238,9 +239,9 @@ class Run(object):
             self.respond_to_issue(found.pop(len(found)-1))
             self.clear_space()
 
-    def respond_to_issue(self, issue):
+    def respond_to_issue(self, issue, force=False):
         # Run snvphyl
-        if self.redmine.get_issue_data(issue['id'])['issue']['status']['name'] == 'New':
+        if self.redmine.get_issue_data(issue['id'])['issue']['status']['name'] == 'New' or force:
             self.t.time_print("Found SNVPhyl to run. Subject: %s. ID: %s" % (issue['subject'], issue['id']))
             self.t.time_print("Adding to responded to")
 
