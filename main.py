@@ -189,6 +189,7 @@ class AutoSNVPhyl(object):
         # Wait for workflow to finish
         self.t.time_print("Waiting for workflow to finish.")
         wait = 0
+        longwait = 24
         while True:
             try:
                 history_state = self.gi.histories.show_history(self.history_id)["state"]
@@ -198,9 +199,14 @@ class AutoSNVPhyl(object):
 
         while history_state != "ok":
             wait += 1
+
             if wait > 60:  # 10 minutes
                 self.t.time_print("Still waiting for workflow to finish.")
                 wait = 0
+                longwait += 1
+                if longwait > 23:
+                    raise AutoSNVPhylError("SNVPhyl took to long, please check galaxy history called %s" %
+                                           str(self.NAME))
 
             time.sleep(10)
             while True:
@@ -211,10 +217,9 @@ class AutoSNVPhyl(object):
                     self.wait_for_problem()
 
             if history_state == "error":
-                name = history_state["name"]
-                self.t.time_print("Something went wrong with your SNVPhyl! Check the galaxy history called %s" % name)
+                self.t.time_print("Something went wrong with your SNVPhyl! Check the galaxy history called %s" % self.NAME)
                 raise AutoSNVPhylError("Something went wrong with your SNVPhyl! "
-                                       "Check the galaxy history called %s" % name)
+                                       "Check the galaxy history called %s" % self.NAME)
 
         self.t.time_print("Workflow finished, downloading files...")
 
