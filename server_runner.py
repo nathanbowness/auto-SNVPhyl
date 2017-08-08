@@ -38,7 +38,7 @@ class Run(object):
 
         self.botmsg = '\n\n_I am a bot. This action was performed automatically._'
         self.issue_title = 'snvphyl'
-        self.issue_status = 'In Progress'
+        self.issue_status = 'New'
 
     def timed_retrieve(self):
         import time
