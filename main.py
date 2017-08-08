@@ -20,7 +20,7 @@ import requests
 from bioblend.galaxy import GalaxyInstance
 from bioblend.galaxy import dataset_collections as collections
 from bioblend import ConnectionError
-from pyaccessories.TimeLog import Timer
+from RedmineAPI.pyaccessories.TimeLog import Timer
 import zipfile
 
 
@@ -59,11 +59,11 @@ class AutoSNVPhyl(object):
 
     def main(self):
         if self.inputs is not None:
-            if len(self.inputs['rename']) > 0:
+            if len(self.inputs.rename) > 0:
                 self.rename = True
 
         print(self.rename)
-        print(self.inputs['rename'])
+        print(self.inputs.rename)
         # Create history in Galaxy
         self.t.time_print("Creating history " + self.NAME)
         while True:
@@ -128,7 +128,7 @@ class AutoSNVPhyl(object):
         for dataset in datasets:
             on_galaxy.append(dataset['name'])
 
-        # Check for duplicate files
+        # Check for duplicate files  # TODO put a better way to check duplicates than using a KeyError
         count = {}
         for file in on_galaxy:
             try:
@@ -190,7 +190,7 @@ class AutoSNVPhyl(object):
         # Wait for workflow to finish
         self.t.time_print("Waiting for workflow to finish.")
         wait = 0
-        longwait = 24
+        longwait = 0
         while True:
             try:
                 history_state = self.gi.histories.show_history(self.history_id)["state"]
@@ -201,15 +201,14 @@ class AutoSNVPhyl(object):
         while history_state != "ok":
             wait += 1
 
-            if wait > 60:  # 10 minutes
+            if wait > 10:  # 10 minutes
                 self.t.time_print("Still waiting for workflow to finish.")
                 wait = 0
                 longwait += 1
-                if longwait > 23:
-                    raise AutoSNVPhylError("SNVPhyl took to long, please check galaxy history called %s" %
-                                           str(self.NAME))
+                if longwait > 24:
+                    raise AutoSNVPhylError("SNVPhyl took to long, please check galaxy history called %s" % self.NAME)
 
-            time.sleep(10)
+            time.sleep(60)
             while True:
                 try:
                     history_state = self.gi.histories.show_history(self.history_id)["state"]
@@ -218,9 +217,9 @@ class AutoSNVPhyl(object):
                     self.wait_for_problem()
 
             if history_state == "error":
-                self.t.time_print("Something went wrong with your SNVPhyl! Check the galaxy history called %s" % self.NAME)
-                raise AutoSNVPhylError("Something went wrong with your SNVPhyl! "
-                                       "Check the galaxy history called %s" % self.NAME)
+                self.t.time_print("An error occured in your SNVPhyl! Please check the galaxy history called %s "
+                                  "for more details" % self.NAME)
+                break
 
         self.t.time_print("Workflow finished, downloading files...")
 
@@ -234,7 +233,7 @@ class AutoSNVPhyl(object):
             "snvTable.tsv"
         ]
 
-        self.t.time_print("Creating directory %s." % self.NAME)
+        self.t.time_print("Creating directory %s." % (os.path.join('results', self.NAME)))
         folder = os.path.join(self.script_dir, 'results', self.NAME)
         if not os.path.exists(folder):
             os.makedirs(folder)
@@ -248,17 +247,23 @@ class AutoSNVPhyl(object):
                 break
             except (ConnectionError, requests.exceptions.ConnectionError):
                 self.wait_for_problem()
+
+        error_files = []
         for dataset in datasets:
             # Renames and downloads
             if dataset["name"] in to_download:
-                self.t.time_print("    Downloading %s to %s" % (dataset["name"], os.path.join(folder, dataset["name"])))
-                while True:
-                    try:
-                        self.gi.datasets.download_dataset(dataset["id"], os.path.join(folder, dataset["name"]),
-                                                          wait_for_completion=True, use_default_filename=False)
-                        break
-                    except (ConnectionError, requests.exceptions.ConnectionError):
-                        self.wait_for_problem()
+                if dataset["state"] == "error":
+                    error_files.append(dataset)
+                else:
+                    self.t.time_print("    Downloading %s to %s" % (dataset["name"], os.path.join(folder,
+                                                                                                  dataset["name"])))
+                    while True:
+                        try:
+                            self.gi.datasets.download_dataset(dataset["id"], os.path.join(folder, dataset["name"]),
+                                                              wait_for_completion=True, use_default_filename=False)
+                            break
+                        except (ConnectionError, requests.exceptions.ConnectionError):
+                            self.wait_for_problem()
                 not_downloaded.remove(dataset["name"])
 
         if len(not_downloaded) > 0:
@@ -267,11 +272,36 @@ class AutoSNVPhyl(object):
             for missing in to_download:
                 self.t.time_print("     %s" % missing)
 
-        self.zip_results(folder)
-
+        file_error_msg = self.handle_files_with_error(error_files)
+        self.zip_results(folder, error_files)
         self.t.time_print("Completed")
 
-        return os.path.join(self.script_dir, folder, self.NAME + '.zip')
+        return os.path.join(folder, self.NAME + '.zip'), file_error_msg
+
+    def handle_files_with_error(self, error_files):
+
+        error_msg = ""
+        if len(error_files) == 0 or error_files is None:
+            return error_msg
+
+        if len(error_files) > 0:
+            self.t.time_print("[Warning] The following files could not be downloaded from galaxy due to an error:")
+            error_msg = "The following files had an error occur on galaxy:"
+            for files in error_files:
+                self.t.time_print("     %s" % files["name"])
+                error_msg += "\n" + files["name"]
+            self.t.time_print("These files will not be included in the zip file.")
+            error_msg += "\nTherefore they were not included in the zip file or downloaded.\n\n"
+
+        # Try to give some possible error feedback since it is not given throught the api
+        if len(error_files) == 1:
+            if error_files[0]["name"] == "snvMatrix.tsv":
+                self.t.time_print("The error from galaxy may have been - \"No phylip formatted alignment found.\" - "
+                                  "Please check the galaxy history called %s for more details." % self.NAME)
+
+                error_msg += "The error from galaxy may have been - \"No phylip formatted alignment found.\"\n " \
+                             "Please check the galaxy history called %s for more details." % self.NAME
+        return error_msg
 
     def upload_check(self, filename):
         self.t.time_print("Waiting for upload to finish...")
@@ -300,7 +330,7 @@ class AutoSNVPhyl(object):
         else:
             return False
 
-    def zip_results(self, r_folder):
+    def zip_results(self, r_folder, error_files):
         f_list = [
             "snvMatrix.tsv",
             "phylogeneticTreeStats.txt",
@@ -310,8 +340,15 @@ class AutoSNVPhyl(object):
             "vcf2core.tsv",
             "snvTable.tsv"
         ]
+
+        # TODO extract the f_list to be universal throughout this class
+        # remove any error files from the list that will be put into the zip file
+        if error_files is not None and len(error_files) > 0:
+            for files in error_files:
+                f_list.remove(files["name"])
+
         # Zip all the files
-        results_zip = os.path.join(self.script_dir, r_folder, self.NAME + '.zip')
+        results_zip = os.path.join(r_folder, self.NAME + '.zip')
         self.t.time_print("Creating zip file %s" % results_zip)
 
         try:
@@ -327,7 +364,6 @@ class AutoSNVPhyl(object):
             except FileNotFoundError:
                 self.t.time_print("[Warning] Can't find %s, will leave it out of .zip." % to_zip)
                 raise
-
         zipf.close()
 
     def upload_file(self, path):
@@ -350,7 +386,7 @@ class AutoSNVPhyl(object):
                             ending = '.fastq'
 
                         seqid = os.path.split(path)[-1].split('_')[0]
-                    nfilename = self.inputs['rename'][seqid] + ending
+                    nfilename = self.inputs.rename[seqid] + ending
                     self.t.time_print("Uploading as %s..." % nfilename)
                 else:
                     self.t.time_print('Uploading...')
@@ -417,7 +453,7 @@ class AutoSNVPhyl(object):
                     self.t.time_print("Invalid seqid: \"%s\"" % line.rstrip("\n"))
 
         else:
-            ids = self.inputs['fastqs']
+            ids = self.inputs.fastqs
 
         # Get paths of fastq's
         path_list = []
@@ -426,7 +462,7 @@ class AutoSNVPhyl(object):
             for i in [1, 2]:
                 try:
                     path_list.append(self.extractor.retrieve_file(seqid.rstrip("\n"), filetype="fastq_R" + str(i),
-                                                             getpathonly=True))
+                                                                  getpathonly=True))
                 except ExtractionError as e:
                     err += e.message + '\n'
 
@@ -516,6 +552,11 @@ class AutoSNVPhyl(object):
                 self.wait_for_problem()
 
     def build_list(self):
+        """
+        Builds list of fastqs and fasta files respectively, from the data uploaded to SNVPhyl
+        Also checks the number fo r1 and r2 files to see if there is a discrepancy in the data
+        :return: 
+        """
         while True:
             try:
                 contents = self.gi.histories.show_history(self.history_id, contents=True)
@@ -524,12 +565,12 @@ class AutoSNVPhyl(object):
                 self.wait_for_problem()
         fastqs = []
 
-        # get fastq files
+        # create a list of galaxy items, for all the fastq files that are found
         for item in contents:
             if item["history_content_type"] == "dataset" and item["extension"] == "fastq":
                 fastqs.append(item)
 
-        # pair fastq files
+        # create a list of galaxy items for the r1 and r2 files, to check if they are the same length
         r1s = []
         r2s = []
         for fastq in fastqs:
@@ -549,6 +590,7 @@ class AutoSNVPhyl(object):
         pairs = []
         done = []
 
+        # create collection elements with the pairs of r1 and r2 files that were found
         for sequence in r1s:
             for compare in r2s:
                 if sequence["name"] == compare["name"] and sequence["name"] not in done:
@@ -569,7 +611,7 @@ class AutoSNVPhyl(object):
                 self.wait_for_problem()
 
     def load(self):
-        from pyaccessories.SaveLoad import SaveLoad as SaveLoad
+        from RedmineAPI.pyaccessories.SaveLoad import SaveLoad as SaveLoad
 
         config = SaveLoad(os.path.join(self.script_dir, "config.json"), create=True)
 
@@ -631,8 +673,8 @@ class AutoSNVPhyl(object):
         # Add arguments
         self.reference = args_in.reference
         self.noextract = args_in.noextract
-        self.NAME = args_in.history_name if args_in.history_name is not None else "AutoSNVPhyl_%s"\
-                                                                                  % time.strftime("%d-%m-%Y")
+        self.NAME = str(args_in.history_name) if args_in.history_name is not None else "AutoSNVPhyl_%s" \
+                                                                                       % time.strftime("%d-%m-%Y")
         self.manual = args_in.manual
 
         self.script_dir = sys.path[0]
